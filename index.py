@@ -90,7 +90,7 @@ async def on_message(message):
                     print(f'Spostato {mention.name} nel team {team_name}')
                     
                     # Invia conferma nel canale di testo
-                    await session.text_channel.send(f'{mention.mention} → {"🔴 ROSSO" if is_red else "🟢 VERDE"}')
+                    await session.text_channel.send(f'{mention.mention} → {"Team Rosso" if is_red else "Team Verde"}')
                 except Exception as e:
                     print(f'Errore nello spostamento di {mention.name}: {e}')
 
@@ -121,32 +121,32 @@ async def create_game_session(guild, lobby_channel):
 
         # Crea canale di testo
         session.text_channel = await guild.create_text_channel(
-            name='🎮-partita-custom',
+            name='cw-interna',
             category=category,
-            topic='Partita Custom - Team ROSSO vs Team VERDE'
+            topic='CW - Team Rosso vs Verde'
         )
 
         # Crea canali vocali
         session.red_voice = await guild.create_voice_channel(
-            name='🔴 ROSSO',
+            name='Team Rosso',
             category=category,
             user_limit=4
         )
 
         session.green_voice = await guild.create_voice_channel(
-            name='🟢 VERDE',
+            name='Team Verde',
             category=category,
             user_limit=4
         )
 
         # Invia messaggio di istruzioni
         embed = discord.Embed(
-            title='🎮 PARTITA CUSTOM PRONTA',
-            description='Tagga i giocatori in questo canale per dividerli nei team!\n\n**Sistema alternato:**\n1° taggato → 🔴 ROSSO\n2° taggato → 🟢 VERDE\n3° taggato → 🔴 ROSSO\n4° taggato → 🟢 VERDE\n...e così via',
+            title='**CW Interna** - Istruzioni',
+            description='**CW Interne Valiance**\n\nTagga fino a 8 giocatori per assegnare i team automaticamente:\n> Il primo taggato verrà inserito nel team ROSSO\n> Il secondo nel team VERDE\n> E cosi via...',
             color=discord.Color.blue()
         )
 
-        embed.set_footer(text='Usa v!cwend per terminare la partita')
+        embed.set_footer(text='Usa `v!cwend` per terminare la partita ed eliminare tutti i canali.')
 
         await session.text_channel.send(embed=embed)
 
@@ -178,18 +178,18 @@ async def assign_teams(session):
         green_mentions = ' '.join([m.mention for m in green_team])
 
         embed.add_field(
-            name='🔴 TEAM ROSSO',
+            name='Team Rosso',
             value=red_mentions,
             inline=False
         )
 
         embed.add_field(
-            name='🟢 TEAM VERDE',
+            name='Team Verde',
             value=green_mentions,
             inline=False
         )
 
-        embed.set_footer(text='Buon divertimento! Usa /cwend per terminare')
+        embed.set_footer(text='Buon divertimento! Usa `v!cwend` per terminare')
 
         await session.text_channel.send(embed=embed)
 
