@@ -5,12 +5,15 @@ Bot Discord per gestire partite custom con divisione automatica dei team.
 ## Funzionalità
 
 - ✅ Monitora un canale vocale lobby specifico
-- ✅ Quando 8 giocatori entrano, crea automaticamente:
-  - Un canale di testo per annunciare i team
-  - Due canali vocali: 🔴 ROSSO e 🟢 VERDE
-  - Sposta automaticamente i primi 4 giocatori nel team ROSSO
-  - Sposta automaticamente gli ultimi 4 giocatori nel team VERDE
-- ✅ Pulizia automatica quando tutti i giocatori escono
+- ✅ Quando 4+ giocatori entrano, crea automaticamente:
+  - Un canale di testo "🎮-partita-custom" per gestire i team
+  - Due canali vocali vuoti: 🔴 ROSSO e 🟢 VERDE
+- ✅ Sistema di tagging manuale:
+  - L'utente tagga 8 giocatori nel canale di testo creato
+  - I primi 4 taggati vengono assegnati al team ROSSO
+  - Gli altri 4 taggati vengono assegnati al team VERDE
+  - Solo i giocatori attualmente in vc vengono spostati
+- ✅ Pulizia automatica quando tutti i giocatori escono dai canali vocali
 - ✅ Comando `/cwend` per terminare manualmente la partita
 - ✅ Comando `/cwstatus` per vedere lo stato della partita
 
@@ -96,14 +99,17 @@ python index.py
 ## Come Funziona
 
 1. Il bot monitora il canale vocale lobby specificato
-2. Quando 8 giocatori sono presenti:
+2. Quando 4+ giocatori entrano nel canale lobby:
    - Crea un canale di testo "🎮-partita-custom"
-   - Crea due canali vocali: "🔴 ROSSO" e "🟢 VERDE"
-   - I primi 4 giocatori entrati vengono assegnati al team ROSSO
-   - Gli ultimi 4 giocatori entrati vengono assegnati al team VERDE
-   - Tutti i giocatori vengono spostati nei rispettivi canali vocali
-3. Quando tutti i giocatori escono dai canali, il bot elimina automaticamente i canali creati
-4. Puoi usare `/cwend` per terminare manualmente la partita in qualsiasi momento
+   - Crea due canali vocali vuoti: "🔴 ROSSO" e "🟢 VERDE"
+   - Invia istruzioni nel canale di testo
+3. L'utente deve taggare 8 giocatori nel canale di testo creato
+4. Quando vengono rilevati 8 tag unici:
+   - I primi 4 taggati vengono assegnati al team ROSSO
+   - Gli altri 4 taggati vengono assegnati al team VERDE
+   - Solo i giocatori attualmente in vc vengono spostati nei canali vocali corrispondenti
+5. Quando tutti i giocatori escono dai canali vocali, il bot elimina automaticamente tutti i canali creati
+6. Puoi usare `/cwend` per terminare manualmente la partita in qualsiasi momento
 
 ## Risoluzione Problemi
 
