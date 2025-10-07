@@ -20,6 +20,9 @@ bot = commands.Bot(command_prefix='v!', intents=intents)
 # Dizionario per tracciare le sessioni attive
 active_sessions = {}
 
+# Variabile per tracciare se stiamo aspettando il ruleset
+waiting_for_ruleset = False
+
 class GameSession:
     def __init__(self, guild, lobby_channel):
         self.guild = guild
@@ -51,14 +54,24 @@ async def on_voice_state_update(member, before, after):
     if after.channel and after.channel.id == lobby_id:
         await check_and_create_game(after.channel)
 
-    # Controlla se qualcuno è uscito dai canali di gioco
-    if before.channel:
-        await check_cleanup(before.channel)
-
 @bot.event
 async def on_message(message):
+    global waiting_for_ruleset
+    
     # Ignora i messaggi del bot stesso
     if message.author.bot:
+        return
+    
+    # Se stiamo aspettando il ruleset e il messaggio è dall'utente autorizzato
+    if waiting_for_ruleset and message.author.id == 1123622103917285418:
+        # Salva il contenuto del messaggio in config.json
+        config['ruleset_message'] = message.content
+        with open('config.json', 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        waiting_for_ruleset = False
+        await message.add_reaction('✅')
+        await message.channel.send('✅ Ruleset salvato! Usa `v!ruleset` per visualizzarlo.')
         return
     
     # Processa i comandi del bot
@@ -119,24 +132,80 @@ async def create_game_session(guild, lobby_channel):
         if 'category_id' in config and config['category_id']:
             category = guild.get_channel(int(config['category_id']))
 
-        # Crea canale di testo
+        # ID utente con permessi speciali
+        admin_user_id = 1123622103917285418
+        admin_user = guild.get_member(admin_user_id)
+        
+        # Configura i permessi per l'utente admin e blocca gli altri
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(
+                read_messages=True,
+                send_messages=False,
+                connect=False
+            ),
+        }
+        
+        if admin_user:
+            overwrites[admin_user] = discord.PermissionOverwrite(
+                # Permessi generali
+                view_channel=True,
+                manage_channels=True,
+                manage_permissions=True,
+                manage_webhooks=True,
+                # Permessi testuali
+                create_instant_invite=True,
+                send_messages=True,
+                send_messages_in_threads=True,
+                create_public_threads=True,
+                create_private_threads=True,
+                embed_links=True,
+                attach_files=True,
+                add_reactions=True,
+                use_external_emojis=True,
+                use_external_stickers=True,
+                mention_everyone=True,
+                manage_messages=True,
+                manage_threads=True,
+                read_message_history=True,
+                send_tts_messages=True,
+                use_application_commands=True,
+                send_polls=True,
+                # Permessi vocali
+                connect=True,
+                speak=True,
+                stream=True,
+                use_embedded_activities=True,
+                use_soundboard=True,
+                use_external_sounds=True,
+                use_voice_activation=True,
+                priority_speaker=True,
+                mute_members=True,
+                deafen_members=True,
+                move_members=True,
+                request_to_speak=True
+            )
+
+        # Crea canale di testo con permessi
         session.text_channel = await guild.create_text_channel(
             name='cw-interna',
             category=category,
-            topic='CW - Team Rosso vs Verde'
+            topic='CW - Team Rosso vs Verde',
+            overwrites=overwrites
         )
 
-        # Crea canali vocali
+        # Crea canali vocali con permessi
         session.red_voice = await guild.create_voice_channel(
             name='Team Rosso',
             category=category,
-            user_limit=4
+            user_limit=4,
+            overwrites=overwrites
         )
 
         session.green_voice = await guild.create_voice_channel(
             name='Team Verde',
             category=category,
-            user_limit=4
+            user_limit=4,
+            overwrites=overwrites
         )
 
         # Invia messaggio di istruzioni
@@ -221,23 +290,6 @@ async def assign_teams(session):
     except Exception as e:
         print(f'Errore nell\'assegnazione dei team: {e}')
 
-async def check_cleanup(channel):
-    """Controlla se i canali di gioco sono vuoti e li pulisce"""
-    guild = channel.guild
-    
-    if guild.id not in active_sessions:
-        return
-    
-    session = active_sessions[guild.id]
-    
-    # Controlla se i canali vocali sono vuoti
-    red_empty = session.red_voice and len([m for m in session.red_voice.members if not m.bot]) == 0
-    green_empty = session.green_voice and len([m for m in session.green_voice.members if not m.bot]) == 0
-    
-    if red_empty and green_empty:
-        print(f'Canali vuoti rilevati, pulizia in corso...')
-        await cleanup_session(guild.id)
-
 async def cleanup_session(guild_id):
     """Elimina tutti i canali creati per la sessione"""
     if guild_id not in active_sessions:
@@ -277,8 +329,13 @@ async def cleanup_session(guild_id):
     except Exception as e:
         print(f'Errore durante la pulizia: {e}')
 
-@bot.command(name='cwend', help='Termina la partita custom e elimina i canali')
+@bot.command(name='cwend', help='Termina la partita custom e elimina i canali (solo admin)')
 async def cwend(ctx):
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
     guild_id = ctx.guild.id
     
     if guild_id not in active_sessions:
@@ -288,6 +345,26 @@ async def cwend(ctx):
     await ctx.send('🧹 Terminazione partita in corso...')
     await cleanup_session(guild_id)
     await ctx.send('✅ Partita terminata e canali eliminati!')
+
+@bot.command(name='setruleset', help='Imposta il ruleset (solo per admin)')
+async def setruleset(ctx):
+    global waiting_for_ruleset
+    
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
+    waiting_for_ruleset = True
+    await ctx.send('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.')
+
+@bot.command(name='ruleset', help='Mostra il ruleset salvato')
+async def ruleset(ctx):
+    if 'ruleset_message' not in config or not config['ruleset_message']:
+        await ctx.send('❌ Nessun ruleset configurato! Usa `v!setruleset` per impostarne uno.')
+        return
+    
+    await ctx.send(config['ruleset_message'])
 
 # Avvia il bot
 if __name__ == '__main__':
