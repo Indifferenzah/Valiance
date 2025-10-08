@@ -2,5 +2,18 @@
   "token": "MTQyNTA5NTkzODM5Mjg1NDU0MA.G70EyZ.UqMTv5lJN3gbVAorlthrJ0XfP-D-Vc7cYRY-0U",
   "lobby_voice_channel_id": "1424858709519106220",
   "category_id": "1424858666284224512",
-  "ruleset_message": "**RULESET SEASON XI \ud83d\udcdc**\n\n\u2705 FireBalls\n\u2705 Ladders\n\u2705 Bridge Eggs\n\u2705 Diamond Armor (2 per team)\n\u2705 Blue side\n\n\u26a0\ufe0f Yellow Side after BB\n\u26a0\ufe0f Ender Pearl after Dia 3\n\u26a0\ufe0f TNT after BB\n\u26a0\ufe0f Water (only in your base) after BB\n\u26a0\ufe0f All Potions after BB\n\u26a0\ufe0f Emeralds (except Bridge Eggs & Diamond Armor) after BB\n\n\u274c **You can\u2019t ladder your own bed**\n\u274c Silverfish\n\u274c All Potions before BB\n\u274c Bows\n\u274c Fireballing Diamonds\n\u274c Obsidian\n\u274c PopUp Towers\n\u274c Iron Golems\n\n> Maps:\n\ud83d\uddfa\ufe0f Archway [127], Boletum [142], Carapace [94], EastWood [101], Lectus [90]."
+  "welcome_channel_id": "1411403173767418027",
+  "ruleset_message": "**RULESET SEASON XI 📜**\n\n✅ FireBalls\n✅ Ladders\n✅ Bridge Eggs\n✅ Diamond Armor (2 per team)\n✅ Blue side\n\n⚠️ Yellow Side after BB\n⚠️ Ender Pearl after Dia 3\n⚠️ TNT after BB\n⚠️ Water (only in your base) after BB\n⚠️ All Potions after BB\n⚠️ Emeralds (except Bridge Eggs & Diamond Armor) after BB\n\n❌ **You can't ladder your own bed**\n❌ Silverfish\n❌ All Potions before BB\n❌ Bows\n❌ Fireballing Diamonds\n❌ Obsidian\n❌ PopUp Towers\n❌ Iron Golems\n\n> Maps:\n🗺️ Archway [127], Boletum [142], Carapace [94], EastWood [101], Lectus [90].",
+  "welcome_message": {
+    "title": "**Nuovo membro!**",
+    "description": "{mention}, benvenuto/a su **Valiance V2**! 🎮\n> <a:greenarrow:1363851704466149396> Apri un ticket in https://discord.com/channels/1350073876339490826/1350074017536544799 per entrare nel clan! <a:greencrown:1363088614527078521>\n> <a:greenarrow:1363851704466149396> Leggi il regolamento in https://discord.com/channels/1350073876339490826/1350074034053709844 per evitare ban inaspettati! :books:\n> <a:greenarrow:1363851704466149396> Fatti conoscere in <#1350074011131969600>! <a:greenstar:1363853986477637793>\n> <a:greenarrow:1363851704466149396> Personalizza i tuoi ruoli in <#1362486898630721737>! <a:greenfire:1363854359678419186>",
+    "color": 36665,
+    "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+    "footer": "Valiance | Buona Permanenza!"
+  },
+  "counters": {
+    "member_role_id": "1350073964235325562",
+    "total_members_name": "👥 Membri: {count}",
+    "role_members_name": "⭐ Membri Clan: {count}"
+  }
 }

@@ -5,7 +5,7 @@ import json
 import asyncio
 
 # Carica configurazione
-with open('config.json', 'r') as f:
+with open('config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 # Configurazione bot
@@ -20,8 +20,13 @@ bot = commands.Bot(command_prefix='v!', intents=intents)
 # Dizionario per tracciare le sessioni attive
 active_sessions = {}
 
-# Variabile per tracciare se stiamo aspettando il ruleset
+# Variabile per tracciare se stiamo aspettando il ruleset o welcome message
 waiting_for_ruleset = False
+waiting_for_welcome = False
+
+# Dizionario per tracciare i canali counter attivi
+counter_channels = {}
+counter_task = None
 
 class GameSession:
     def __init__(self, guild, lobby_channel):
@@ -43,6 +48,12 @@ async def on_ready():
         print(f'Errore nella sincronizzazione: {e}')
 
 @bot.event
+async def on_member_remove(member):
+    """Aggiorna i counter quando un membro esce"""
+    if member.guild.id in counter_channels:
+        await update_counters(member.guild)
+
+@bot.event
 async def on_voice_state_update(member, before, after):
     # Ignora i bot
     if member.bot:
@@ -55,8 +66,61 @@ async def on_voice_state_update(member, before, after):
         await check_and_create_game(after.channel)
 
 @bot.event
+async def on_member_join(member):
+    """Invia il messaggio di benvenuto quando un nuovo membro entra e aggiorna i counter"""
+    # Aggiorna i counter se attivi
+    if member.guild.id in counter_channels:
+        await update_counters(member.guild)
+    
+    # Invia messaggio di benvenuto
+    if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
+        return
+    
+    try:
+        welcome_channel = member.guild.get_channel(int(config['welcome_channel_id']))
+        if not welcome_channel:
+            return
+        
+        # Ottieni il messaggio di benvenuto dalla config
+        welcome_data = config.get('welcome_message', {})
+        
+        # Sostituisci le variabili
+        description = welcome_data.get('description', '{mention}, benvenuto/a!')
+        description = description.replace('{mention}', member.mention)
+        description = description.replace('{username}', member.name)
+        description = description.replace('{user}', member.name)
+        
+        # Crea l'embed
+        embed = discord.Embed(
+            title=welcome_data.get('title', 'Nuovo membro!'),
+            description=description,
+            color=welcome_data.get('color', 3447003)
+        )
+        
+        # Aggiungi thumbnail (avatar dell'utente)
+        thumbnail = welcome_data.get('thumbnail', '{avatar}')
+        if '{avatar}' in thumbnail:
+            embed.set_thumbnail(url=member.display_avatar.url)
+        elif thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+        
+        # Aggiungi footer
+        footer = welcome_data.get('footer', '')
+        if footer:
+            embed.set_footer(text=footer)
+        
+        # Aggiungi author (header con icona profilo)
+        embed.set_author(name=member.name, icon_url=member.display_avatar.url)
+        
+        await welcome_channel.send(embed=embed)
+        print(f'Messaggio di benvenuto inviato per {member.name}')
+        
+    except Exception as e:
+        print(f'Errore nell\'invio del messaggio di benvenuto: {e}')
+
+@bot.event
 async def on_message(message):
-    global waiting_for_ruleset
+    global waiting_for_ruleset, waiting_for_welcome
     
     # Ignora i messaggi del bot stesso
     if message.author.bot:
@@ -66,12 +130,24 @@ async def on_message(message):
     if waiting_for_ruleset and message.author.id == 1123622103917285418:
         # Salva il contenuto del messaggio in config.json
         config['ruleset_message'] = message.content
-        with open('config.json', 'w') as f:
-            json.dump(config, f, indent=2)
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
         
         waiting_for_ruleset = False
         await message.add_reaction('✅')
         await message.channel.send('✅ Ruleset salvato! Usa `v!ruleset` per visualizzarlo.')
+        return
+    
+    # Se stiamo aspettando il welcome message e il messaggio è dall'utente autorizzato
+    if waiting_for_welcome and message.author.id == 1123622103917285418:
+        # Salva il contenuto del messaggio come descrizione del welcome
+        config['welcome_message']['description'] = message.content
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        waiting_for_welcome = False
+        await message.add_reaction('✅')
+        await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
         return
     
     # Processa i comandi del bot
@@ -365,6 +441,247 @@ async def ruleset(ctx):
         return
     
     await ctx.send(config['ruleset_message'])
+
+@bot.command(name='setwelcomemsg', help='Imposta il messaggio di benvenuto (solo per admin)')
+async def setwelcomemsg(ctx):
+    global waiting_for_welcome
+    
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
+    waiting_for_welcome = True
+    await ctx.send('📝 Invia il prossimo messaggio che vuoi salvare come messaggio di benvenuto.\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
+
+@bot.command(name='testwelcome', help='Testa il messaggio di benvenuto (solo per admin)')
+async def testwelcome(ctx):
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
+    if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
+        await ctx.send('❌ Canale di benvenuto non configurato in config.json!')
+        return
+    
+    try:
+        welcome_channel = ctx.guild.get_channel(int(config['welcome_channel_id']))
+        if not welcome_channel:
+            await ctx.send('❌ Canale di benvenuto non trovato!')
+            return
+        
+        # Ottieni il messaggio di benvenuto dalla config
+        welcome_data = config.get('welcome_message', {})
+        
+        # Sostituisci le variabili con i dati dell'utente che ha eseguito il comando
+        description = welcome_data.get('description', '{mention}, benvenuto/a!')
+        description = description.replace('{mention}', ctx.author.mention)
+        description = description.replace('{username}', ctx.author.name)
+        description = description.replace('{user}', ctx.author.name)
+        
+        # Crea l'embed
+        embed = discord.Embed(
+            title=welcome_data.get('title', 'Nuovo membro!'),
+            description=description,
+            color=welcome_data.get('color', 3447003)
+        )
+        
+        # Aggiungi thumbnail (avatar dell'utente)
+        thumbnail = welcome_data.get('thumbnail', '{avatar}')
+        if '{avatar}' in thumbnail:
+            embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        elif thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+        
+        # Aggiungi footer
+        footer = welcome_data.get('footer', '')
+        if footer:
+            embed.set_footer(text=footer)
+        
+        # Aggiungi author (header con icona profilo)
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
+        
+        await welcome_channel.send(embed=embed)
+        await ctx.send('✅ Messaggio di benvenuto di test inviato!')
+        
+    except Exception as e:
+        await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
+
+async def update_counters(guild):
+    """Aggiorna i nomi dei canali counter con i conteggi attuali"""
+    if guild.id not in counter_channels:
+        return
+    
+    try:
+        counters_config = config.get('counters', {})
+        
+        # Conta tutti i membri (esclusi i bot)
+        total_members = len([m for m in guild.members if not m.bot])
+        
+        # Conta i membri con il ruolo specifico
+        role_id = int(counters_config.get('member_role_id', '0'))
+        role = guild.get_role(role_id)
+        role_members = 0
+        if role:
+            role_members = len([m for m in role.members if not m.bot])
+        
+        # Aggiorna canale membri totali
+        if 'total_members' in counter_channels[guild.id]:
+            channel = counter_channels[guild.id]['total_members']
+            name_template = counters_config.get('total_members_name', '👥 Membri: {count}')
+            new_name = name_template.replace('{count}', str(total_members))
+            if channel.name != new_name:
+                await channel.edit(name=new_name)
+                print(f'Aggiornato counter membri totali: {new_name}')
+        
+        # Aggiorna canale membri con ruolo
+        if 'role_members' in counter_channels[guild.id]:
+            channel = counter_channels[guild.id]['role_members']
+            name_template = counters_config.get('role_members_name', '⭐ Membri Clan: {count}')
+            new_name = name_template.replace('{count}', str(role_members))
+            if channel.name != new_name:
+                await channel.edit(name=new_name)
+                print(f'Aggiornato counter membri ruolo: {new_name}')
+                
+    except Exception as e:
+        print(f'Errore nell\'aggiornamento dei counter: {e}')
+
+async def counter_update_loop():
+    """Loop per aggiornare i counter periodicamente"""
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            for guild_id in list(counter_channels.keys()):
+                guild = bot.get_guild(guild_id)
+                if guild:
+                    await update_counters(guild)
+            await asyncio.sleep(300)  # Aggiorna ogni 5 minuti
+        except Exception as e:
+            print(f'Errore nel loop di aggiornamento counter: {e}')
+            await asyncio.sleep(60)
+
+@bot.command(name='startct', help='Avvia i canali counter (solo admin)')
+async def startct(ctx):
+    global counter_task
+    
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
+    guild = ctx.guild
+    
+    # Controlla se i counter sono già attivi
+    if guild.id in counter_channels:
+        await ctx.send('❌ I counter sono già attivi! Usa `v!stopct` per fermarli prima.')
+        return
+    
+    try:
+        await ctx.send('🔄 Creazione canali counter in corso...')
+        
+        counters_config = config.get('counters', {})
+        
+        # Conta i membri
+        total_members = len([m for m in guild.members if not m.bot])
+        role_id = int(counters_config.get('member_role_id', '0'))
+        role = guild.get_role(role_id)
+        role_members = 0
+        if role:
+            role_members = len([m for m in role.members if not m.bot])
+        
+        # Crea i nomi dei canali con i conteggi
+        total_name = counters_config.get('total_members_name', '👥 Membri: {count}').replace('{count}', str(total_members))
+        role_name = counters_config.get('role_members_name', '⭐ Membri Clan: {count}').replace('{count}', str(role_members))
+        
+        # Crea i canali vocali in cima (position=0) senza categoria
+        total_channel = await guild.create_voice_channel(
+            name=total_name,
+            position=0,
+            user_limit=0,
+            overwrites={
+                guild.default_role: discord.PermissionOverwrite(connect=False)
+            }
+        )
+        
+        role_channel = await guild.create_voice_channel(
+            name=role_name,
+            position=1,
+            user_limit=0,
+            overwrites={
+                guild.default_role: discord.PermissionOverwrite(connect=False)
+            }
+        )
+        
+        # Salva i canali
+        counter_channels[guild.id] = {
+            'total_members': total_channel,
+            'role_members': role_channel
+        }
+        
+        # Avvia il task di aggiornamento se non è già attivo
+        if counter_task is None or counter_task.done():
+            counter_task = bot.loop.create_task(counter_update_loop())
+        
+        await ctx.send(f'✅ Canali counter creati con successo!\n📊 Membri totali: {total_members}\n⭐ Membri clan: {role_members}')
+        print(f'Counter attivati nel server {guild.name}')
+        
+    except Exception as e:
+        await ctx.send(f'❌ Errore nella creazione dei counter: {e}')
+        print(f'Errore nella creazione dei counter: {e}')
+
+@bot.command(name='stopct', help='Ferma e elimina i canali counter (solo admin)')
+async def stopct(ctx):
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+    
+    guild = ctx.guild
+    
+    # Controlla se i counter sono attivi
+    if guild.id not in counter_channels:
+        await ctx.send('❌ Non ci sono counter attivi!')
+        return
+    
+    try:
+        await ctx.send('🧹 Eliminazione canali counter in corso...')
+        
+        channels = counter_channels[guild.id]
+        
+        # Elimina i canali
+        if 'total_members' in channels:
+            try:
+                await channels['total_members'].delete()
+                print('Canale counter membri totali eliminato')
+            except Exception as e:
+                print(f'Errore nell\'eliminazione del canale membri totali: {e}')
+        
+        if 'role_members' in channels:
+            try:
+                await channels['role_members'].delete()
+                print('Canale counter membri ruolo eliminato')
+            except Exception as e:
+                print(f'Errore nell\'eliminazione del canale membri ruolo: {e}')
+        
+        # Rimuovi dalla lista
+        del counter_channels[guild.id]
+        
+        await ctx.send('✅ Canali counter eliminati con successo!')
+        print(f'Counter disattivati nel server {guild.name}')
+        
+    except Exception as e:
+        await ctx.send(f'❌ Errore nell\'eliminazione dei counter: {e}')
+        print(f'Errore nell\'eliminazione dei counter: {e}')
+
+@bot.command(name='purge', help='Elimina un tot di messaggi')
+@commands.has_permissions(manage_messages=True)
+async def purge_messages(ctx, limit: int):
+    if limit < 1 or limit > 250:
+        await ctx.send("❌ puoi scegliere numeri tra 1 e 250.")
+        return
+    deleted = await ctx.channel.purge(limit=limit)
+    await ctx.send(f"✅ Ho eliminato {len(deleted)} messaggi.", delete_after=3)
 
 # Avvia il bot
 if __name__ == '__main__':
