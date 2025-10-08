@@ -14,6 +14,7 @@ intents.voice_states = True
 intents.guilds = True
 intents.members = True
 intents.message_content = True
+intents.reactions = True
 
 bot = commands.Bot(command_prefix='v!', intents=intents)
 
@@ -46,6 +47,33 @@ async def on_ready():
         print(f'Sincronizzati {len(synced)} comandi slash')
     except Exception as e:
         print(f'Errore nella sincronizzazione: {e}')
+
+    # Carica i counter attivi dal config
+    active_counters = config.get('active_counters', {})
+    for guild_id_str, channels in active_counters.items():
+        guild_id = int(guild_id_str)
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            continue
+        counter_channels[guild_id] = {}
+        for channel_type, channel_id in channels.items():
+            channel = guild.get_channel(int(channel_id))
+            if channel:
+                counter_channels[guild_id][channel_type] = channel
+                print(f'Counter {channel_type} caricato per guild {guild.name}')
+            else:
+                print(f'Canale counter {channel_type} non trovato per guild {guild.name}, rimuovo dal config')
+                del config['active_counters'][guild_id_str][channel_type]
+                if not config['active_counters'][guild_id_str]:
+                    del config['active_counters'][guild_id_str]
+                with open('config.json', 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+
+    # Avvia il loop di aggiornamento se ci sono counter attivi
+    global counter_task
+    if counter_channels and (counter_task is None or counter_task.done()):
+        counter_task = bot.loop.create_task(counter_update_loop())
+        print('Loop di aggiornamento counter avviato')
 
 @bot.event
 async def on_member_remove(member):
@@ -152,6 +180,15 @@ async def on_message(message):
     
     # Processa i comandi del bot
     await bot.process_commands(message)
+
+    # Check for welcome messages
+    if message.content.lower() in ['wlc', 'welcome']:
+        emojis = config.get('welcome_emojis', [])
+        for emoji in emojis:
+            try:
+                await message.add_reaction(emoji)
+            except Exception as e:
+                print(f'Errore nell\'aggiungere reazione {emoji}: {e}')
 
     guild = message.guild
     if not guild or guild.id not in active_sessions:
@@ -512,20 +549,34 @@ async def update_counters(guild):
     """Aggiorna i nomi dei canali counter con i conteggi attuali"""
     if guild.id not in counter_channels:
         return
-    
+
     try:
+        # Rimuovi counter se canali eliminati
+        for channel_type in list(counter_channels[guild.id].keys()):
+            channel = counter_channels[guild.id][channel_type]
+            if channel is None or not hasattr(channel, 'id') or channel.id is None:
+                # Channel deleted, remove
+                del counter_channels[guild.id][channel_type]
+                if str(guild.id) in config.get('active_counters', {}) and channel_type in config['active_counters'][str(guild.id)]:
+                    del config['active_counters'][str(guild.id)][channel_type]
+                    if not config['active_counters'][str(guild.id)]:
+                        del config['active_counters'][str(guild.id)]
+                    with open('config.json', 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                print(f'Counter {channel_type} rimosso per guild {guild.name} (canale eliminato)')
+
         counters_config = config.get('counters', {})
-        
+
         # Conta tutti i membri (esclusi i bot)
         total_members = len([m for m in guild.members if not m.bot])
-        
+
         # Conta i membri con il ruolo specifico
         role_id = int(counters_config.get('member_role_id', '0'))
         role = guild.get_role(role_id)
         role_members = 0
         if role:
             role_members = len([m for m in role.members if not m.bot])
-        
+
         # Aggiorna canale membri totali
         if 'total_members' in counter_channels[guild.id]:
             channel = counter_channels[guild.id]['total_members']
@@ -534,7 +585,7 @@ async def update_counters(guild):
             if channel.name != new_name:
                 await channel.edit(name=new_name)
                 print(f'Aggiornato counter membri totali: {new_name}')
-        
+
         # Aggiorna canale membri con ruolo
         if 'role_members' in counter_channels[guild.id]:
             channel = counter_channels[guild.id]['role_members']
@@ -543,7 +594,7 @@ async def update_counters(guild):
             if channel.name != new_name:
                 await channel.edit(name=new_name)
                 print(f'Aggiornato counter membri ruolo: {new_name}')
-                
+
     except Exception as e:
         print(f'Errore nell\'aggiornamento dei counter: {e}')
 
@@ -556,10 +607,10 @@ async def counter_update_loop():
                 guild = bot.get_guild(guild_id)
                 if guild:
                     await update_counters(guild)
-            await asyncio.sleep(300)  # Aggiorna ogni 5 minuti
+            await asyncio.sleep(5)  # Aggiorna ogni 5 minuti
         except Exception as e:
             print(f'Errore nel loop di aggiornamento counter: {e}')
-            await asyncio.sleep(60)
+            await asyncio.sleep(5)
 
 @bot.command(name='startct', help='Avvia i canali counter (solo admin)')
 async def startct(ctx):
@@ -618,11 +669,21 @@ async def startct(ctx):
             'total_members': total_channel,
             'role_members': role_channel
         }
-        
+
+        # Salva gli ID nel config
+        if 'active_counters' not in config:
+            config['active_counters'] = {}
+        config['active_counters'][str(guild.id)] = {
+            'total_members': total_channel.id,
+            'role_members': role_channel.id
+        }
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
         # Avvia il task di aggiornamento se non è già attivo
         if counter_task is None or counter_task.done():
             counter_task = bot.loop.create_task(counter_update_loop())
-        
+
         await ctx.send(f'✅ Canali counter creati con successo!\n📊 Membri totali: {total_members}\n⭐ Membri clan: {role_members}')
         print(f'Counter attivati nel server {guild.name}')
         
@@ -666,7 +727,13 @@ async def stopct(ctx):
         
         # Rimuovi dalla lista
         del counter_channels[guild.id]
-        
+
+        # Rimuovi dal config
+        if str(guild.id) in config.get('active_counters', {}):
+            del config['active_counters'][str(guild.id)]
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+
         await ctx.send('✅ Canali counter eliminati con successo!')
         print(f'Counter disattivati nel server {guild.name}')
         

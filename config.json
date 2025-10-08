@@ -1,8 +1,8 @@
 {
   "token": "MTQyNTA5NTkzODM5Mjg1NDU0MA.G70EyZ.UqMTv5lJN3gbVAorlthrJ0XfP-D-Vc7cYRY-0U",
-  "lobby_voice_channel_id": "1424858709519106220",
-  "category_id": "1424858666284224512",
-  "welcome_channel_id": "1411403173767418027",
+  "lobby_voice_channel_id": "1425176140481564682",
+  "category_id": "1350074005209485372",
+  "welcome_channel_id": "1350074011131969600",
   "ruleset_message": "**RULESET SEASON XI 📜**\n\n✅ FireBalls\n✅ Ladders\n✅ Bridge Eggs\n✅ Diamond Armor (2 per team)\n✅ Blue side\n\n⚠️ Yellow Side after BB\n⚠️ Ender Pearl after Dia 3\n⚠️ TNT after BB\n⚠️ Water (only in your base) after BB\n⚠️ All Potions after BB\n⚠️ Emeralds (except Bridge Eggs & Diamond Armor) after BB\n\n❌ **You can't ladder your own bed**\n❌ Silverfish\n❌ All Potions before BB\n❌ Bows\n❌ Fireballing Diamonds\n❌ Obsidian\n❌ PopUp Towers\n❌ Iron Golems\n\n> Maps:\n🗺️ Archway [127], Boletum [142], Carapace [94], EastWood [101], Lectus [90].",
   "welcome_message": {
     "title": "**Nuovo membro!**",
@@ -15,5 +15,12 @@
     "member_role_id": "1350073964235325562",
     "total_members_name": "👥 Membri: {count}",
     "role_members_name": "⭐ Membri Clan: {count}"
-  }
+  },
+  "active_counters": {
+    "1350073876339490826": {
+      "total_members": 1425503169315737652,
+      "role_members": 1425503171232530563
+    }
+  },
+  "welcome_emojis": ["<a:greenarrow:1363851704466149396>", "<a:greencrown:1363088614527078521>", "<a:greenstar:1363853986477637793>"]
 }
