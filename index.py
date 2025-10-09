@@ -21,6 +21,9 @@ bot = commands.Bot(command_prefix='v!', intents=intents)
 # Load ticket cog
 from ticket import TicketCog, TicketView
 
+# Load moderation cog
+from moderation import ModerationCog
+
 # Dizionario per tracciare le sessioni attive
 active_sessions = {}
 
@@ -91,6 +94,10 @@ async def on_ready():
     # Add ticket cog
     await bot.add_cog(TicketCog(bot))
     print('Ticket cog aggiunto')
+
+    # Add moderation cog
+    await bot.add_cog(ModerationCog(bot))
+    print('Moderation cog aggiunto')
 
     # Re-attach ticket panel view if exists
     ticket_cog = bot.get_cog('TicketCog')
@@ -892,15 +899,6 @@ async def stopct(ctx):
     except Exception as e:
         await ctx.send(f'❌ Errore nell\'eliminazione dei counter: {e}')
         print(f'Errore nell\'eliminazione dei counter: {e}')
-
-@bot.command(name='purge', help='Elimina un tot di messaggi')
-@commands.has_permissions(manage_messages=True)
-async def purge_messages(ctx, limit: int):
-    if limit < 1 or limit > 250:
-        await ctx.send("❌ puoi scegliere numeri tra 1 e 250.")
-        return
-    deleted = await ctx.channel.purge(limit=limit)
-    await ctx.send(f"✅ Ho eliminato {len(deleted)} messaggi.", delete_after=3)
 
 # Avvia il bot
 if __name__ == '__main__':

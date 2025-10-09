@@ -75,5 +75,10 @@
       "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **Provino**;\nattendi la risposta di uno staffer. <@&1350073958933729371>",
       "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket."
     }
-  ]
+  ],
+  "moderation": {
+    "staff_role_id": "1350073958933729371",
+    "mod_role_id": "1350073957168058408",
+    "warn_channel_id": "1351184266284896347"
+  }
 }
