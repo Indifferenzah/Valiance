@@ -251,7 +251,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
     # Check for welcome messages
-    if message.content.lower() in ['wlc', 'welcome']:
+    if message.content.lower() in ['wlc', 'welcome', 'benvenuto']:
         emojis = config.get('welcome_emojis', [])
         for emoji in emojis:
             try:
