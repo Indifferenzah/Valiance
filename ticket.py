@@ -75,8 +75,14 @@ class TicketCog(commands.Cog):
 
         # Get messages
         messages = []
+        staff_role_id = self.config.get('ticket_staff_role_id')
         async for message in ctx.channel.history(limit=None, oldest_first=True):
-            messages.append(f'{message.created_at.strftime("%Y-%m-%d %H:%M:%S")} {message.author}: {message.content}')
+            prefix = ''
+            if message.author.id == self.bot.user.id:
+                prefix = '[BOT] '
+            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
+                prefix = '[STAFF] '
+            messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
 
         # Create txt
         filename = f'transcript-{ctx.channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
@@ -299,8 +305,14 @@ class ConfirmCloseView(discord.ui.View):
 
         # Generate transcript
         messages = []
+        staff_role_id = self.cog.config.get('ticket_staff_role_id')
         async for message in channel.history(limit=None, oldest_first=True):
-            messages.append(f'{message.created_at.strftime("%Y-%m-%d %H:%M:%S")} {message.author}: {message.content}')
+            prefix = ''
+            if message.author.id == self.cog.bot.user.id:
+                prefix = '[BOT] '
+            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
+                prefix = '[STAFF] '
+            messages.append(f'{message.created_at.strftime("%Y-%m-%d %H:%M:%S")} {prefix}{message.author}: {message.content}')
 
         # Create txt
         filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
