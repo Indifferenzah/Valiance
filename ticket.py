@@ -4,6 +4,7 @@ from discord import ui
 import json
 import os
 from datetime import datetime
+from discord import InteractionType
 
 class TicketCog(commands.Cog):
     def __init__(self, bot):
@@ -11,6 +12,10 @@ class TicketCog(commands.Cog):
         with open('config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self.ticket_owners = {}
+        self.blacklist = []
+        if os.path.exists('blacklist.json'):
+            with open('blacklist.json', 'r') as f:
+                self.blacklist = json.load(f)
 
     @commands.command(name='ticketpanel')
     async def ticketpanel(self, ctx):
@@ -42,7 +47,13 @@ class TicketCog(commands.Cog):
 
         # Create view with filtered buttons
         view = TicketView(filtered_buttons, self.config, self)
-        await ctx.send(embed=embed, view=view)
+        message = await ctx.send(embed=embed, view=view)
+
+        # Save panel message id and channel id for persistence
+        self.config['ticket_panel_channel_id'] = ctx.channel.id
+        self.config['ticket_panel_message_id'] = message.id
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(self.config, f, indent=2, ensure_ascii=False)
 
     @commands.command(name='close')
     async def close(self, ctx):
@@ -192,6 +203,83 @@ class TicketCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nel rinominare: {e}')
 
+    @commands.command(name='blacklist')
+    async def blacklist_user(self, ctx, member: discord.Member = None):
+        # Check permission
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
+            await ctx.send('❌ Non hai i permessi per usare questo comando!')
+            return
+
+        if member is None:
+            await ctx.send('Devi specificare un utente!')
+            return
+
+        if member.id in self.blacklist:
+            self.blacklist.remove(member.id)
+            await ctx.send(f'✅ {member.mention} è stato rimosso dalla blacklist!')
+        else:
+            self.blacklist.append(member.id)
+            await ctx.send(f'✅ {member.mention} è stato aggiunto alla blacklist!')
+
+        with open('blacklist.json', 'w') as f:
+            json.dump(self.blacklist, f)
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction):
+        if interaction.type == InteractionType.component:
+            custom_id = interaction.data.get('custom_id')
+            if custom_id in [btn['id'] for btn in self.config.get('ticket_buttons', [])]:
+                # Find the button config
+                btn_config = next((btn for btn in self.config.get('ticket_buttons', []) if btn['id'] == custom_id), None)
+                if btn_config:
+                    if interaction.user.id in self.blacklist:
+                        await interaction.response.send_message('❌ Sei nella blacklist e non puoi aprire ticket!', ephemeral=True)
+                        return
+                    # Mimic the callback
+                    guild = interaction.guild
+                    category_id = self.config.get('ticket_category_id')
+                    category = guild.get_channel(int(category_id)) if category_id else None
+
+                    staff_role_id = self.config.get('ticket_staff_role_id')
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                    }
+                    if staff_role_id:
+                        role = guild.get_role(int(staff_role_id))
+                        if role:
+                            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+                    # Check if button has additional roles
+                    additional_roles = btn_config.get('roles', [])
+                    for role_id in additional_roles:
+                        role = guild.get_role(int(role_id))
+                        if role:
+                            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+                    channel = await guild.create_text_channel(
+                        name=f'ticket-{interaction.user.name}',
+                        category=category,
+                        overwrites=overwrites
+                    )
+
+                    # Store ticket owner
+                    self.ticket_owners[channel.id] = interaction.user.id
+
+                    # Send outside message
+                    outside_message = btn_config.get('outside_message', 'Ticket aperto!')
+                    outside_message = outside_message.replace('{mention}', interaction.user.mention)
+                    await channel.send(outside_message)
+
+                    # Send embed message
+                    embed_message = btn_config.get('embed_message', 'A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket.')
+                    embed = discord.Embed(description=embed_message, color=0x00ff00)
+                    view = CloseTicketView(channel.id, self)
+                    await channel.send(embed=embed, view=view)
+
+                    await interaction.response.send_message(f'🎫 Ticket creato: {channel.mention}', ephemeral=True)
+
 class TicketView(discord.ui.View):
     def __init__(self, buttons, config, cog):
         super().__init__(timeout=None)
@@ -214,6 +302,9 @@ class TicketButton(discord.ui.Button):
         self.config = config
 
     async def callback(self, interaction):
+        if interaction.user.id in self.view.cog.blacklist:
+            await interaction.response.send_message('❌ Sei nella blacklist e non puoi aprire ticket!', ephemeral=True)
+            return
         # Create ticket channel
         guild = interaction.guild
         category_id = self.config.get('ticket_category_id')
@@ -312,7 +403,7 @@ class ConfirmCloseView(discord.ui.View):
                 prefix = '[BOT] '
             elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
                 prefix = '[STAFF] '
-            messages.append(f'{message.created_at.strftime("%Y-%m-%d %H:%M:%S")} {prefix}{message.author}: {message.content}')
+            messages.append(f'{message.created_at.strftime("`%Y-%m-%d %H:%M:%S`")} {prefix}{message.author}: {message.content}')
 
         # Create txt
         filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'

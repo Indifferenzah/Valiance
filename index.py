@@ -19,7 +19,7 @@ intents.reactions = True
 bot = commands.Bot(command_prefix='v!', intents=intents)
 
 # Load ticket cog
-from ticket import TicketCog
+from ticket import TicketCog, TicketView
 
 # Dizionario per tracciare le sessioni attive
 active_sessions = {}
@@ -43,6 +43,14 @@ class GameSession:
         self.green_voice = None
         self.tagged_users = []
         self.is_active = False
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send('❌ Comando inesistente! Fai `v!help` per vedere una lista di comandi disponibili.')
+    else:
+        # Handle other errors if needed
+        pass
 
 @bot.event
 async def on_ready():
@@ -83,6 +91,33 @@ async def on_ready():
     # Add ticket cog
     await bot.add_cog(TicketCog(bot))
     print('Ticket cog aggiunto')
+
+    # Re-attach ticket panel view if exists
+    ticket_cog = bot.get_cog('TicketCog')
+    if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
+        channel = bot.get_channel(int(config['ticket_panel_channel_id']))
+        if channel:
+            try:
+                message = await channel.fetch_message(int(config['ticket_panel_message_id']))
+                # Get panel config
+                panel = config.get('ticket_panel', {})
+                embed = discord.Embed(
+                    title=panel.get('title', 'Support Tickets'),
+                    description=panel.get('description', 'Click a button to open a ticket'),
+                    color=panel.get('color', 0x00ff00)
+                )
+                if panel.get('thumbnail'):
+                    embed.set_thumbnail(url=panel['thumbnail'])
+                if panel.get('footer'):
+                    embed.set_footer(text=panel['footer'])
+
+                # Use all buttons for re-attachment
+                all_buttons = config.get('ticket_buttons', [])
+                view = TicketView(all_buttons, config, ticket_cog)
+                await message.edit(embed=embed, view=view)
+                print('Ticket panel view re-attached')
+            except Exception as e:
+                print(f'Errore nel ricaricare il pannello ticket: {e}')
 
 @bot.event
 async def on_member_remove(member):
