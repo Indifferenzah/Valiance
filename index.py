@@ -18,6 +18,9 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix='v!', intents=intents)
 
+# Load ticket cog
+from ticket import TicketCog
+
 # Dizionario per tracciare le sessioni attive
 active_sessions = {}
 
@@ -76,6 +79,10 @@ async def on_ready():
     if counter_channels and (counter_task is None or counter_task.done()):
         counter_task = bot.loop.create_task(counter_update_loop())
         print('Loop di aggiornamento counter avviato')
+
+    # Add ticket cog
+    await bot.add_cog(TicketCog(bot))
+    print('Ticket cog aggiunto')
 
 @bot.event
 async def on_member_remove(member):

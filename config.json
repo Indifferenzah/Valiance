@@ -23,7 +23,11 @@
       "role_members": 1425503171232530563
     }
   },
-  "welcome_emojis": ["<a:welcome1:1357415726117290001>", "<a:welcome2:1357415713173934140>", "<a:redfire:1357415688771211495>"],
+  "welcome_emojis": [
+    "<a:welcome1:1357415726117290001>",
+    "<a:welcome2:1357415713173934140>",
+    "<a:redfire:1357415688771211495>"
+  ],
   "boost_channel_id": "1350074011131969600",
   "boost_message": {
     "title": "**Nuovo Boost!** 🚀",
@@ -31,5 +35,45 @@
     "color": 15990945,
     "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
     "footer": "Valiance | Grazie per il boost!"
-  }
+  },
+  "ticket_staff_role_id": "1350073958933729371",
+  "ticket_category_id": "1350074001229221898",
+  "ticket_transcript_channel_id": "1350118549665873981",
+  "ticket_panel": {
+    "title": "Supporto Valiance",
+    "description": "Clicca i bottoni **sotto** per aprire **ticket**!\n> <a:greenarrow:1363851704466149396> Se hai bisogno di assistenza, non esitare ad **aprire un ticket**.\n> <a:greenarrow:1363851704466149396> Il **nostro team** è sempre pronto a darti una mano e **ti risponderà** nel più breve tempo possibile.",
+    "color": 36665,
+    "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+    "footer": "Valiance | Supporto"
+  },
+  "ticket_buttons": [
+    {
+      "id": "general",
+      "label": "Generale",
+      "emoji": "<a:greenstar:1363853986477637793>",
+      "style": "secondary",
+      "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **Generale**;\nattendi la risposta di uno staffer. <@&1350073958933729371>",
+      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket."
+    },
+    {
+      "id": "cw",
+      "label": "Clan Wars",
+      "emoji": "<a:greenstar:1363853986477637793>",
+      "style": "secondary",
+      "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **CW**;\nattendi la risposta di uno staffer. <@&1350073958933729371> <@&1350073967716732971>",
+      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket.",
+      "roles": [
+        "1350073958933729371",
+        "1350073967716732971"
+      ]
+    },
+    {
+      "id": "provino",
+      "label": "Provino",
+      "emoji": "<a:greenstar:1363853986477637793>",
+      "style": "secondary",
+      "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **Provino**;\nattendi la risposta di uno staffer. <@&1350073958933729371>",
+      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket."
+    }
+  ]
 }
