@@ -24,6 +24,7 @@ active_sessions = {}
 # Variabile per tracciare se stiamo aspettando il ruleset o welcome message
 waiting_for_ruleset = False
 waiting_for_welcome = False
+waiting_for_boost = False
 
 # Dizionario per tracciare i canali counter attivi
 counter_channels = {}
@@ -209,31 +210,31 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_message(message):
-    global waiting_for_ruleset, waiting_for_welcome
-    
+    global waiting_for_ruleset, waiting_for_welcome, waiting_for_boost
+
     # Ignora i messaggi del bot stesso
     if message.author.bot:
         return
-    
+
     # Se stiamo aspettando il ruleset e il messaggio è dall'utente autorizzato
     if waiting_for_ruleset and message.author.id == 1123622103917285418:
         # Salva il contenuto del messaggio in config.json
         config['ruleset_message'] = message.content
         with open('config.json', 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
-        
+
         waiting_for_ruleset = False
         await message.add_reaction('✅')
         await message.channel.send('✅ Ruleset salvato! Usa `v!ruleset` per visualizzarlo.')
         return
-    
+
     # Se stiamo aspettando il welcome message e il messaggio è dall'utente autorizzato
     if waiting_for_welcome and message.author.id == 1123622103917285418:
         # Salva il contenuto del messaggio come descrizione del welcome
         config['welcome_message']['description'] = message.content
         with open('config.json', 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
-        
+
         waiting_for_welcome = False
         await message.add_reaction('✅')
         await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
@@ -540,18 +541,6 @@ async def ruleset(ctx):
     
     await ctx.send(config['ruleset_message'])
 
-@bot.command(name='setwelcomemsg', help='Imposta il messaggio di benvenuto (solo per admin)')
-async def setwelcomemsg(ctx):
-    global waiting_for_welcome
-    
-    # Controlla se l'utente è autorizzato
-    if ctx.author.id != 1123622103917285418:
-        await ctx.send('❌ Non hai i permessi per usare questo comando!')
-        return
-    
-    waiting_for_welcome = True
-    await ctx.send('📝 Invia il prossimo messaggio che vuoi salvare come messaggio di benvenuto.\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
-
 @bot.command(name='testwelcome', help='Testa il messaggio di benvenuto (solo per admin)')
 async def testwelcome(ctx):
     # Controlla se l'utente è autorizzato
@@ -602,7 +591,61 @@ async def testwelcome(ctx):
         
         await welcome_channel.send(embed=embed)
         await ctx.send('✅ Messaggio di benvenuto di test inviato!')
-        
+
+    except Exception as e:
+        await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
+
+@bot.command(name='testboost', help='Testa il messaggio di boost (solo per admin)')
+async def testboost(ctx):
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+
+    if 'boost_channel_id' not in config or not config['boost_channel_id']:
+        await ctx.send('❌ Canale di boost non configurato in config.json!')
+        return
+
+    try:
+        boost_channel = ctx.guild.get_channel(int(config['boost_channel_id']))
+        if not boost_channel:
+            await ctx.send('❌ Canale di boost non trovato!')
+            return
+
+        # Ottieni il messaggio di boost dalla config
+        boost_data = config.get('boost_message', {})
+
+        # Sostituisci le variabili con i dati dell'utente che ha eseguito il comando
+        description = boost_data.get('description', '{mention} ha boostato il server!')
+        description = description.replace('{mention}', ctx.author.mention)
+        description = description.replace('{username}', ctx.author.name)
+        description = description.replace('{user}', ctx.author.name)
+
+        # Crea l'embed
+        embed = discord.Embed(
+            title=boost_data.get('title', 'Nuovo Boost!'),
+            description=description,
+            color=boost_data.get('color', 16776960)
+        )
+
+        # Aggiungi thumbnail (avatar dell'utente)
+        thumbnail = boost_data.get('thumbnail', '{avatar}')
+        if '{avatar}' in thumbnail:
+            embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        elif thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+
+        # Aggiungi footer
+        footer = boost_data.get('footer', '')
+        if footer:
+            embed.set_footer(text=footer)
+
+        # Aggiungi author (header con icona profilo)
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
+
+        await boost_channel.send(embed=embed)
+        await ctx.send('✅ Messaggio di boost di test inviato!')
+
     except Exception as e:
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
 
