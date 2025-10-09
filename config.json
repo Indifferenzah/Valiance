@@ -7,6 +7,7 @@
   "welcome_message": {
     "title": "**Nuovo membro!**",
     "description": "{mention}, benvenuto/a su **Valiance V2**! 🎮\n> <a:greenarrow:1363851704466149396> Apri un ticket in https://discord.com/channels/1350073876339490826/1350074017536544799 per entrare nel clan! <a:greencrown:1363088614527078521>\n> <a:greenarrow:1363851704466149396> Leggi il regolamento in https://discord.com/channels/1350073876339490826/1350074034053709844 per evitare ban inaspettati! :books:\n> <a:greenarrow:1363851704466149396> Fatti conoscere in <#1350074011131969600>! <a:greenstar:1363853986477637793>\n> <a:greenarrow:1363851704466149396> Personalizza i tuoi ruoli in <#1362486898630721737>! <a:greenfire:1363854359678419186>",
+    "ping_message": "{mention}",
     "color": 36665,
     "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
     "footer": "Valiance | Buona Permanenza!"
@@ -22,5 +23,13 @@
       "role_members": 1425503171232530563
     }
   },
-  "welcome_emojis": ["<a:greenarrow:1363851704466149396>", "<a:greencrown:1363088614527078521>", "<a:greenstar:1363853986477637793>"]
+  "welcome_emojis": ["<a:greenarrow:1363851704466149396>", "<a:greencrown:1363088614527078521>", "<a:greenstar:1363853986477637793>"],
+  "boost_channel_id": "1350074011131969600",
+  "boost_message": {
+    "title": "**Nuovo Boost!** 🚀",
+    "description": "{mention} ha boostato il server! Grazie per il supporto! 💎",
+    "color": 15990945,
+    "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+    "footer": "Valiance | Grazie per il boost!"
+  }
 }

@@ -28,6 +28,7 @@ waiting_for_welcome = False
 # Dizionario per tracciare i canali counter attivi
 counter_channels = {}
 counter_task = None
+last_counter_update = {}  # Per evitare aggiornamenti troppo frequenti
 
 class GameSession:
     def __init__(self, guild, lobby_channel):
@@ -47,7 +48,7 @@ async def on_ready():
         print(f'Sincronizzati {len(synced)} comandi slash')
     except Exception as e:
         print(f'Errore nella sincronizzazione: {e}')
-
+    
     # Carica i counter attivi dal config
     active_counters = config.get('active_counters', {})
     for guild_id_str, channels in active_counters.items():
@@ -78,8 +79,9 @@ async def on_ready():
 @bot.event
 async def on_member_remove(member):
     """Aggiorna i counter quando un membro esce"""
+    # Rimuovi l'aggiornamento immediato per evitare rate limits
     if member.guild.id in counter_channels:
-        await update_counters(member.guild)
+        await update_counters(member.guild) 
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -117,34 +119,93 @@ async def on_member_join(member):
         description = description.replace('{mention}', member.mention)
         description = description.replace('{username}', member.name)
         description = description.replace('{user}', member.name)
-        
+
         # Crea l'embed
         embed = discord.Embed(
             title=welcome_data.get('title', 'Nuovo membro!'),
             description=description,
             color=welcome_data.get('color', 3447003)
         )
-        
+
         # Aggiungi thumbnail (avatar dell'utente)
         thumbnail = welcome_data.get('thumbnail', '{avatar}')
         if '{avatar}' in thumbnail:
             embed.set_thumbnail(url=member.display_avatar.url)
         elif thumbnail:
             embed.set_thumbnail(url=thumbnail)
-        
+
         # Aggiungi footer
         footer = welcome_data.get('footer', '')
         if footer:
             embed.set_footer(text=footer)
-        
+
         # Aggiungi author (header con icona profilo)
         embed.set_author(name=member.name, icon_url=member.display_avatar.url)
-        
-        await welcome_channel.send(embed=embed)
+
+        # Invia messaggio con ping e embed
+        ping_message = welcome_data.get('ping_message', '')
+        if ping_message:
+            ping_message = ping_message.replace('{mention}', member.mention).replace('{username}', member.name).replace('{user}', member.name)
+            await welcome_channel.send(content=ping_message, embed=embed)
+        else:
+            await welcome_channel.send(embed=embed)
+
         print(f'Messaggio di benvenuto inviato per {member.name}')
         
     except Exception as e:
         print(f'Errore nell\'invio del messaggio di benvenuto: {e}')
+
+@bot.event
+async def on_member_update(before, after):
+    """Invia il messaggio di boost quando un membro boosta il server"""
+    # Controlla se il membro ha iniziato a boostare
+    if before.premium_since is None and after.premium_since is not None:
+        # Invia messaggio di boost
+        if 'boost_channel_id' not in config or not config['boost_channel_id']:
+            return
+
+        try:
+            boost_channel = after.guild.get_channel(int(config['boost_channel_id']))
+            if not boost_channel:
+                return
+
+            # Ottieni il messaggio di boost dalla config
+            boost_data = config.get('boost_message', {})
+
+            # Sostituisci le variabili
+            description = boost_data.get('description', '{mention} ha boostato il server!')
+            description = description.replace('{mention}', after.mention)
+            description = description.replace('{username}', after.name)
+            description = description.replace('{user}', after.name)
+
+            # Crea l'embed
+            embed = discord.Embed(
+                title=boost_data.get('title', 'Nuovo Boost!'),
+                description=description,
+                color=boost_data.get('color', 16776960)
+            )
+
+            # Aggiungi thumbnail (avatar dell'utente)
+            thumbnail = boost_data.get('thumbnail', '{avatar}')
+            if '{avatar}' in thumbnail:
+                embed.set_thumbnail(url=after.display_avatar.url)
+            elif thumbnail:
+                embed.set_thumbnail(url=thumbnail)
+
+            # Aggiungi footer
+            footer = boost_data.get('footer', '')
+            if footer:
+                embed.set_footer(text=footer)
+
+            # Aggiungi author (header con icona profilo)
+            embed.set_author(name=after.name, icon_url=after.display_avatar.url)
+
+            await boost_channel.send(embed=embed)
+
+            print(f'Messaggio di boost inviato per {after.name}')
+
+        except Exception as e:
+            print(f'Errore nell\'invio del messaggio di boost: {e}')
 
 @bot.event
 async def on_message(message):
@@ -550,6 +611,12 @@ async def update_counters(guild):
     if guild.id not in counter_channels:
         return
 
+    # Controlla se è passato abbastanza tempo dall'ultimo aggiornamento
+    now = asyncio.get_event_loop().time()
+    if guild.id in last_counter_update and now - last_counter_update[guild.id] < 30:
+        return  # Aggiorna al massimo ogni minuto
+    last_counter_update[guild.id] = now
+
     try:
         # Rimuovi counter se canali eliminati
         for channel_type in list(counter_channels[guild.id].keys()):
@@ -607,10 +674,10 @@ async def counter_update_loop():
                 guild = bot.get_guild(guild_id)
                 if guild:
                     await update_counters(guild)
-            await asyncio.sleep(5)  # Aggiorna ogni 5 minuti
+            await asyncio.sleep(30)  # Aggiorna ogni 5 minuti
         except Exception as e:
             print(f'Errore nel loop di aggiornamento counter: {e}')
-            await asyncio.sleep(5)
+            await asyncio.sleep(15)
 
 @bot.command(name='startct', help='Avvia i canali counter (solo admin)')
 async def startct(ctx):

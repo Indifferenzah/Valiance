@@ -1,0 +1,7 @@
+- [x] Aggiungere "active_counters": {} a config.json
+- [x] Modificare on_ready per caricare i counter attivi
+- [x] Modificare startct per salvare gli ID dei canali
+- [x] Modificare stopct per rimuovere gli ID dal config
+- [x] Modificare update_counters per rimuovere counter se canale eliminato
+- [x] Aggiungere throttling agli aggiornamenti counter per evitare rate limits
+- [x] Aggiungere messaggi di boost custom con embed in config.json
