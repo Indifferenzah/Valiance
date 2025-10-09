@@ -900,6 +900,18 @@ async def stopct(ctx):
         await ctx.send(f'❌ Errore nell\'eliminazione dei counter: {e}')
         print(f'Errore nell\'eliminazione dei counter: {e}')
 
+@bot.command(name='delete')
+async def delete(ctx):
+    # Controlla se l'utente è autorizzato
+    if ctx.author.id != 1123622103917285418:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
+
+    try:
+        await ctx.channel.delete()
+    except Exception as e:
+        await ctx.send(f'❌ Errore nell\'eliminazione del canale: {e}')
+
 # Avvia il bot
 if __name__ == '__main__':
     try:
