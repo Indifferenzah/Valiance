@@ -83,7 +83,7 @@
   },
   "ticket_transcript_embed": {
     "title": "Ticket Chiuso",
-    "description": "Il tuo ticket su **Valiance** è stato chiuso.\n> **Aperto da:** {opener}\n> **Chiuso da:** {staffer}\n> **Nome del ticket:** {name}\n> **Tipo:** {id}",
+    "description": "Il tuo ticket su **Valiance** è stato chiuso.\n> **Aperto da:** {opener}\n> **Chiuso da:** {staffer}\n> **Nome del ticket:** {name}\n> **ID:** {id}",
     "color": 36665,
     "footer": "Valiance | Ticket System",
     "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png"
