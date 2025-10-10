@@ -900,6 +900,31 @@ async def stopct(ctx):
         await ctx.send(f'❌ Errore nell\'eliminazione dei counter: {e}')
         print(f'Errore nell\'eliminazione dei counter: {e}')
 
+class DeleteConfirmView(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=30)
+        self.ctx = ctx
+
+    @discord.ui.button(label='Conferma', style=discord.ButtonStyle.danger, emoji='🗑️')
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può confermare!', ephemeral=True)
+            return
+
+        try:
+            print(f'{self.ctx.author.name} ha eliminato il canale {self.ctx.channel.name}')
+            await self.ctx.channel.delete()
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nell\'eliminazione del canale: {e}', ephemeral=True)
+
+    @discord.ui.button(label='Annulla', style=discord.ButtonStyle.secondary, emoji='❌')
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può annullare!', ephemeral=True)
+            return
+
+        await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
+
 @bot.command(name='delete')
 async def delete(ctx):
     # Controlla se l'utente è autorizzato
@@ -907,11 +932,15 @@ async def delete(ctx):
         await ctx.send('❌ Non hai i permessi per usare questo comando!')
         return
 
-    try:
-        print(f'{ctx.author.name} ha eliminato il canale {ctx.channel.name}')
-        await ctx.channel.delete()
-    except Exception as e:
-        await ctx.send(f'❌ Errore nell\'eliminazione del canale: {e}')
+    embed = discord.Embed(
+        title='🗑️ Conferma Eliminazione',
+        description=f'Sei sicuro di voler eliminare il canale **{ctx.channel.name}**?\n\nQuesta azione è irreversibile.',
+        color=0xff0000
+    )
+    embed.set_footer(text='Scade in 30 secondi')
+
+    view = DeleteConfirmView(ctx)
+    await ctx.send(embed=embed, view=view)
 
 # Avvia il bot
 if __name__ == '__main__':
