@@ -119,15 +119,17 @@ class TicketCog(commands.Cog):
             embed.set_footer(text=embed_data['footer'])
 
         # Variables
-        owner_id = self.ticket_owners.get(ctx.channel.id)
+        ticket_info = self.ticket_owners.get(ctx.channel.id, {})
+        owner_id = ticket_info.get('owner')
+        button_id = ticket_info.get('button', '')
         opener = self.bot.get_user(owner_id).mention if owner_id and self.bot.get_user(owner_id) else 'Unknown'
         staffer = ctx.author.mention
         name = ctx.channel.name
 
-        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
-        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
         if embed.footer:
-            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name))
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
 
         # Send to transcript channel
         transcript_channel_id = self.config.get('ticket_transcript_channel_id')
@@ -197,7 +199,8 @@ class TicketCog(commands.Cog):
             return
 
         # Cannot remove owner or staff
-        ticket_owner = self.ticket_owners.get(ctx.channel.id)
+        ticket_info = self.ticket_owners.get(ctx.channel.id, {})
+        ticket_owner = ticket_info.get('owner')
         if member.id == ticket_owner:
             await ctx.send('❌ Non puoi rimuovere il proprietario del ticket!')
             return
@@ -303,7 +306,7 @@ class TicketCog(commands.Cog):
                     )
 
                     # Store ticket owner
-                    self.ticket_owners[channel.id] = interaction.user.id
+                    self.ticket_owners[channel.id] = {'owner': interaction.user.id, 'button': custom_id}
                     self.save_tickets()
 
                     # Send outside message
@@ -402,7 +405,8 @@ class CloseTicketView(discord.ui.View):
             await interaction.response.send_message('❌ Canale non trovato!', ephemeral=True)
             return
 
-        ticket_owner = self.cog.ticket_owners.get(self.channel_id)
+        ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
+        ticket_owner = ticket_info.get('owner')
         staff_role_id = self.cog.config.get('ticket_staff_role_id')
         is_staff = staff_role_id and any(role.id == int(staff_role_id) for role in interaction.user.roles)
 
@@ -460,15 +464,17 @@ class ConfirmCloseView(discord.ui.View):
             embed.set_footer(text=embed_data['footer'])
 
         # Variables
-        owner_id = self.cog.ticket_owners.get(self.channel_id)
+        ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
+        owner_id = ticket_info.get('owner')
+        button_id = ticket_info.get('button', '')
         opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
         staffer = interaction.user.mention
         name = channel.name
 
-        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
-        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
         if embed.footer:
-            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name))
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
 
         # Send to transcript channel
         transcript_channel_id = self.cog.config.get('ticket_transcript_channel_id')

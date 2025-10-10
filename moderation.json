@@ -46,35 +46,35 @@
       "title": "BAN",
       "description": "Sei stato bannato da **Valiance**.\n> **Motivo:** {reason}\n> **Durata:** {duration}",
       "color": 16711680,
-      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
       "footer": "Valiance - Moderazione"
     },
     "kick": {
       "title": "KICK",
       "description": "Sei stato kickato da **Valiance**.\n> **Motivo:** {reason}\n> **Durata:** {duration}",
       "color": 16225061,
-      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
       "footer": "Valiance - Moderazione"
     },
     "mute": {
       "title": "MUTE",
       "description": "Sei stato mutato da **Valiance**.\n> **Motivo:** {reason}\n> **Durata:** {duration}\n> **Staffer:** {staffer}",
       "color": 16225061,
-      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
       "footer": "Valiance - Moderazione"
     },
     "warn": {
       "title": "WARN",
       "description": "Hai ricevuto un warn in **Valiance**.\n> **Motivo:** {reason}\n> **Staffer:** {staffer}",
       "color": 16753920,
-      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
       "footer": "Valiance - Moderazione"
     },
     "word_warning": {
       "title": "Avviso Parola Vietata",
       "description": "Hai usato una parola vietata: **{word}**. Non puoi più scriverla, altrimenti verrai mutato automaticamente.",
       "color": 16711680,
-      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
       "footer": "Valiance - Moderazione"
     }
   }

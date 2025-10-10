@@ -3,4 +3,5 @@
 - [x] Modificare confirm_close in ticket.py per inviare messaggio con allegato e DM
 - [x] Salvare ticket aperti in ticket.json per persistenza
 - [x] Impedire al proprietario del ticket di chiuderlo con il pulsante
+- [x] Aggiungere variabile {id} per l'ID del pulsante cliccato
 - [ ] Testare le modifiche
