@@ -441,7 +441,7 @@ class ConfirmCloseView(discord.ui.View):
                 prefix = '[BOT] '
             elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
                 prefix = '[STAFF] '
-            messages.append(f'{message.created_at.strftime("`%Y-%m-%d %H:%M:%S`")} {prefix}{message.author}: {message.content}')
+            messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
 
         # Create txt
         filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
