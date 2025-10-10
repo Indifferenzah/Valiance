@@ -3,6 +3,10 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import asyncio
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 with open('config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
@@ -859,6 +863,6 @@ async def ping(ctx):
 
 if __name__ == '__main__':
     try:
-        bot.run(config['token'])
+        bot.run(os.getenv('TOKEN'))
     except Exception as e:
         print(f'Errore nell\'avvio del bot: {e}')
