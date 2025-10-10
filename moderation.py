@@ -19,9 +19,18 @@ class ModerationCog(commands.Cog):
         else:
             self.warns_data = {"next_id": 1, "warns": {}}
 
+        self.user_words = {}
+        if os.path.exists('user_words.json'):
+            with open('user_words.json', 'r') as f:
+                self.user_words = json.load(f)
+
     def save_warns(self):
         with open('warns.json', 'w') as f:
             json.dump(self.warns_data, f, indent=2)
+
+    def save_user_words(self):
+        with open('user_words.json', 'w') as f:
+            json.dump(self.user_words, f, indent=2)
 
     def get_user_warns(self, user_id):
         return [w for w in self.warns_data["warns"].values() if w["user_id"] == str(user_id)]
@@ -45,6 +54,7 @@ class ModerationCog(commands.Cog):
                 description = description.replace("{duration}", kwargs.get("duration", "N/A"))
                 description = description.replace("{total_warns}", str(kwargs.get("total_warns", 0)))
                 description = description.replace("{mention}", member.mention)
+                description = description.replace("{word}", kwargs.get("word", "N/A"))
                 embed.description = description
                 await member.send(embed=embed)
         except discord.Forbidden:
@@ -79,19 +89,43 @@ class ModerationCog(commands.Cog):
             await ctx.send(f'❌ Errore nel kickare: {e}')
 
     @commands.command(name='mute')
-    async def mute(self, ctx, member: discord.Member, duration: str = None, *, reason="Nessuna ragione specificata"):
+    async def mute(self, ctx, *, args):
         staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
+            return
+
+        args_list = args.split()
+        if not args_list:
+            await ctx.send('❌ Uso: v!mute <membro> [durata] [ragione]')
+            return
+
+        member_str = args_list[0]
+        try:
+            member = await commands.MemberConverter().convert(ctx, member_str)
+        except commands.MemberNotFound:
+            await ctx.send('❌ Membro non trovato!')
             return
 
         if member.is_timed_out():
             await ctx.send('❌ L\'utente è già mutato!')
             return
 
+        rest = args_list[1:]
+        duration = None
+        reason_parts = []
+        for part in rest:
+            if re.match(r'\d+[smhd]', part.lower()):
+                if duration is None:
+                    duration = part
+                else:
+                    reason_parts.append(part)
+            else:
+                reason_parts.append(part)
+        reason = ' '.join(reason_parts) if reason_parts else "Nessuna ragione specificata"
+
         if not duration:
-            await ctx.send('❌ Devi specificare una durata (es. 1h, 30m, 1d)!')
-            return
+            duration = "25d"
 
         match = re.match(r'(\d+)([smhd])', duration.lower())
         if not match:
@@ -277,6 +311,8 @@ class ModerationCog(commands.Cog):
             return
 
         content = message.content.lower()
+        user_id_str = str(message.author.id)
+        user_words_list = self.user_words.get(user_id_str, [])
 
         for duration, words in self.moderation_words.items():
             if isinstance(words, list):
@@ -302,11 +338,21 @@ class ModerationCog(commands.Cog):
 
                         try:
                             await message.delete()
-                            await message.author.timeout(delta, reason=f'Auto-mute per parola vietata: {word}')
-                            await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata.')
-                            await self.send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
+                            if word.lower() in [w.lower() for w in user_words_list]:
+                                # repeat, mute
+                                await message.author.timeout(delta, reason=f'Auto-mute per parola vietata ripetuta: {word}')
+                                await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata ripetuta.')
+                                await self.send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata ripetuta: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
+                            else:
+                                # first time, warn
+                                await self.send_dm(message.author, "word_warning", word=word)
+                                if user_id_str not in self.user_words:
+                                    self.user_words[user_id_str] = []
+                                self.user_words[user_id_str].append(word.lower())
+                                await message.channel.send(f'{message.author.mention} ha ricevuto un avviso per una parola vietata. Non ripeterla!')
                         except Exception as e:
-                            print(f'Errore auto-mute: {e}')
+                            print(f'Errore: {e}')
+                        self.save_user_words()
                         return
 
 async def setup(bot):

@@ -27,14 +27,19 @@
   ],
   "12h": [
     "ciccione",
-    "obeso"
+    "obeso",
+    "cicciona",
+    "obesa"
   ],
   "1d": [],
   "3d": [
     "tumore",
     "tumori",
     "cancri",
-    "cancro"
+    "cancro",
+    "negro",
+    "negri",
+    "negra"
   ],
   "dm_messages": {
     "ban": {
@@ -62,6 +67,13 @@
       "title": "WARN",
       "description": "Hai ricevuto un warn in **Valiance**.\n> **Motivo:** {reason}\n> **Staffer:** {staffer}",
       "color": 16753920,
+      "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
+      "footer": "Valiance - Moderazione"
+    },
+    "word_warning": {
+      "title": "Avviso Parola Vietata",
+      "description": "Hai usato una parola vietata: **{word}**. Non puoi più scriverla, altrimenti verrai mutato automaticamente.",
+      "color": 16711680,
       "thumbnail": "https://i.postimg.cc/SK4zHWvj/F0-D294-C4-053-A-4-B21-9-E1-A-BF1-F798-C134-A-removebg-preview.png",
       "footer": "Valiance - Moderazione"
     }

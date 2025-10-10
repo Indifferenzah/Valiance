@@ -903,11 +903,12 @@ async def stopct(ctx):
 @bot.command(name='delete')
 async def delete(ctx):
     # Controlla se l'utente è autorizzato
-    if ctx.author.id != 1123622103917285418:
+    if not ctx.author.guild_permissions.administrator and ctx.author.id != 1123622103917285418:
         await ctx.send('❌ Non hai i permessi per usare questo comando!')
         return
 
     try:
+        print(f'{ctx.author.name} ha eliminato il canale {ctx.channel.name}')
         await ctx.channel.delete()
     except Exception as e:
         await ctx.send(f'❌ Errore nell\'eliminazione del canale: {e}')
