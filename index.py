@@ -942,6 +942,10 @@ async def delete(ctx):
     view = DeleteConfirmView(ctx)
     await ctx.send(embed=embed, view=view)
 
+@bot.command(name="ping")
+async def ping(ctx):
+    await ctx.send(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms")
+
 # Avvia il bot
 if __name__ == '__main__':
     try:

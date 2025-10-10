@@ -12,10 +12,17 @@ class TicketCog(commands.Cog):
         with open('config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self.ticket_owners = {}
+        if os.path.exists('ticket.json'):
+            with open('ticket.json', 'r') as f:
+                self.ticket_owners = json.load(f)
         self.blacklist = []
         if os.path.exists('blacklist.json'):
             with open('blacklist.json', 'r') as f:
                 self.blacklist = json.load(f)
+
+    def save_tickets(self):
+        with open('ticket.json', 'w') as f:
+            json.dump(self.ticket_owners, f)
 
     @commands.command(name='ticketpanel')
     async def ticketpanel(self, ctx):
@@ -100,17 +107,48 @@ class TicketCog(commands.Cog):
         with open(filename, 'w', encoding='utf-8') as f:
             f.write('\n'.join(messages))
 
+        embed_data = self.config.get('ticket_transcript_embed', {})
+        embed = discord.Embed(
+            title=embed_data.get('title', 'Transcript del Ticket'),
+            description=embed_data.get('description', 'Ecco il transcript del ticket.'),
+            color=embed_data.get('color', 0x00ff00)
+        )
+        if embed_data.get('thumbnail'):
+            embed.set_thumbnail(url=embed_data['thumbnail'])
+        if embed_data.get('footer'):
+            embed.set_footer(text=embed_data['footer'])
+
+        # Variables
+        owner_id = self.ticket_owners.get(ctx.channel.id)
+        opener = self.bot.get_user(owner_id).mention if owner_id and self.bot.get_user(owner_id) else 'Unknown'
+        staffer = ctx.author.mention
+        name = ctx.channel.name
+
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        if embed.footer:
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name))
+
         # Send to transcript channel
         transcript_channel_id = self.config.get('ticket_transcript_channel_id')
         if transcript_channel_id:
             channel = self.bot.get_channel(int(transcript_channel_id))
             if channel:
-                await channel.send(file=discord.File(filename))
+                await channel.send(embed=embed, file=discord.File(filename))
                 await ctx.send('✅ Transcript inviato!')
             else:
                 await ctx.send('❌ Canale transcript non trovato!')
         else:
             await ctx.send('❌ Canale transcript non configurato!')
+
+        # Send DM to owner
+        if owner_id:
+            owner = self.bot.get_user(owner_id)
+            if owner:
+                try:
+                    await owner.send(embed=embed, file=discord.File(filename))
+                except discord.Forbidden:
+                    pass  # Can't DM
 
         # Delete file
         os.remove(filename)
@@ -266,6 +304,7 @@ class TicketCog(commands.Cog):
 
                     # Store ticket owner
                     self.ticket_owners[channel.id] = interaction.user.id
+                    self.save_tickets()
 
                     # Send outside message
                     outside_message = btn_config.get('outside_message', 'Ticket aperto!')
@@ -410,14 +449,45 @@ class ConfirmCloseView(discord.ui.View):
         with open(filename, 'w', encoding='utf-8') as f:
             f.write('\n'.join(messages))
 
+        embed_data = self.cog.config.get('ticket_transcript_embed', {})
+        embed = discord.Embed(
+            title=embed_data.get('title', 'Transcript del Ticket'),
+            description=embed_data.get('description', 'Ecco il transcript del ticket.'),
+            color=embed_data.get('color', 0x00ff00)
+        )
+        if embed_data.get('thumbnail'):
+            embed.set_thumbnail(url=embed_data['thumbnail'])
+        if embed_data.get('footer'):
+            embed.set_footer(text=embed_data['footer'])
+
+        # Variables
+        owner_id = self.cog.ticket_owners.get(self.channel_id)
+        opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
+        staffer = interaction.user.mention
+        name = channel.name
+
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name)
+        if embed.footer:
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name))
+
         # Send to transcript channel
         transcript_channel_id = self.cog.config.get('ticket_transcript_channel_id')
         if transcript_channel_id:
             transcript_channel = self.cog.bot.get_channel(int(transcript_channel_id))
             if transcript_channel:
-                await transcript_channel.send(file=discord.File(filename))
+                await transcript_channel.send(embed=embed, file=discord.File(filename))
             else:
                 print('Canale transcript non trovato!')
+
+        # Send DM to owner
+        if owner_id:
+            owner = self.cog.bot.get_user(owner_id)
+            if owner:
+                try:
+                    await owner.send(embed=embed, file=discord.File(filename))
+                except discord.Forbidden:
+                    pass  # Can't DM
 
         # Delete file
         os.remove(filename)
@@ -428,6 +498,7 @@ class ConfirmCloseView(discord.ui.View):
         # Remove from ticket owners
         if self.channel_id in self.cog.ticket_owners:
             del self.cog.ticket_owners[self.channel_id]
+            self.cog.save_tickets()
 
     @discord.ui.button(label='Annulla', style=discord.ButtonStyle.secondary, emoji='❌')
     async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
