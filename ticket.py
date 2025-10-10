@@ -14,7 +14,8 @@ class TicketCog(commands.Cog):
         self.ticket_owners = {}
         if os.path.exists('ticket.json'):
             with open('ticket.json', 'r') as f:
-                self.ticket_owners = json.load(f)
+                loaded = json.load(f)
+                self.ticket_owners = {int(k): v for k, v in loaded.items()}
         self.blacklist = []
         if os.path.exists('blacklist.json'):
             with open('blacklist.json', 'r') as f:
@@ -26,12 +27,10 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='ticketpanel')
     async def ticketpanel(self, ctx):
-        # Check if specific user
         if ctx.author.id != 1123622103917285418:
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
 
-        # Get panel config
         panel = self.config.get('ticket_panel', {})
         embed = discord.Embed(
             title=panel.get('title', 'Support Tickets'),
@@ -43,7 +42,6 @@ class TicketCog(commands.Cog):
         if panel.get('footer'):
             embed.set_footer(text=panel['footer'])
 
-        # Filter buttons based on user roles
         all_buttons = self.config.get('ticket_buttons', [])
         user_role_ids = [str(role.id) for role in ctx.author.roles]
         filtered_buttons = []
@@ -52,11 +50,9 @@ class TicketCog(commands.Cog):
             if not roles or any(role_id in user_role_ids for role_id in roles):
                 filtered_buttons.append(btn)
 
-        # Create view with filtered buttons
         view = TicketView(filtered_buttons, self.config, self)
         message = await ctx.send(embed=embed, view=view)
 
-        # Save panel message id and channel id for persistence
         self.config['ticket_panel_channel_id'] = ctx.channel.id
         self.config['ticket_panel_message_id'] = message.id
         with open('config.json', 'w', encoding='utf-8') as f:
@@ -64,12 +60,10 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='close')
     async def close(self, ctx):
-        # Check if in ticket channel
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
 
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if staff_role_id and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per chiudere i ticket!')
@@ -80,18 +74,15 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='transcript')
     async def transcript(self, ctx):
-        # Check if in ticket channel
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
 
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if staff_role_id and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per creare transcript!')
             return
 
-        # Get messages
         messages = []
         staff_role_id = self.config.get('ticket_staff_role_id')
         async for message in ctx.channel.history(limit=None, oldest_first=True):
@@ -102,7 +93,6 @@ class TicketCog(commands.Cog):
                 prefix = '[STAFF] '
             messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
 
-        # Create txt
         filename = f'transcript-{ctx.channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
         with open(filename, 'w', encoding='utf-8') as f:
             f.write('\n'.join(messages))
@@ -118,10 +108,13 @@ class TicketCog(commands.Cog):
         if embed_data.get('footer'):
             embed.set_footer(text=embed_data['footer'])
 
-        # Variables
         ticket_info = self.ticket_owners.get(ctx.channel.id, {})
-        owner_id = ticket_info.get('owner')
-        button_id = ticket_info.get('button', '')
+        if isinstance(ticket_info, int):
+            owner_id = ticket_info
+            button_id = ''
+        else:
+            owner_id = ticket_info.get('owner')
+            button_id = ticket_info.get('button', '')
         opener = self.bot.get_user(owner_id).mention if owner_id and self.bot.get_user(owner_id) else 'Unknown'
         staffer = ctx.author.mention
         name = ctx.channel.name
@@ -131,7 +124,6 @@ class TicketCog(commands.Cog):
         if embed.footer:
             embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
 
-        # Send to transcript channel
         transcript_channel_id = self.config.get('ticket_transcript_channel_id')
         if transcript_channel_id:
             channel = self.bot.get_channel(int(transcript_channel_id))
@@ -143,37 +135,31 @@ class TicketCog(commands.Cog):
         else:
             await ctx.send('❌ Canale transcript non configurato!')
 
-        # Send DM to owner
         if owner_id:
-            owner = self.bot.get_user(owner_id)
+            owner = channel.guild.get_member(owner_id)
             if owner:
                 try:
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
                     pass  # Can't DM
 
-        # Delete file
         os.remove(filename)
 
     @commands.command(name='add')
     async def add_user(self, ctx, member: discord.Member):
-        # Check if in ticket channel
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
 
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
 
-        # Check if user is already in the channel
         if ctx.channel.permissions_for(member).read_messages:
             await ctx.send('❌ L\'utente è già nel ticket!')
             return
 
-        # Add user to overwrites
         overwrites = ctx.channel.overwrites
         overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
         await ctx.channel.edit(overwrites=overwrites)
@@ -182,25 +168,24 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='remove')
     async def remove_user(self, ctx, member: discord.Member):
-        # Check if in ticket channel
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
 
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
 
-        # Check if user is in the channel
         if not ctx.channel.permissions_for(member).read_messages:
             await ctx.send('❌ L\'utente non è nel ticket!')
             return
 
-        # Cannot remove owner or staff
         ticket_info = self.ticket_owners.get(ctx.channel.id, {})
-        ticket_owner = ticket_info.get('owner')
+        if isinstance(ticket_info, int):
+            ticket_owner = ticket_info
+        else:
+            ticket_owner = ticket_info.get('owner')
         if member.id == ticket_owner:
             await ctx.send('❌ Non puoi rimuovere il proprietario del ticket!')
             return
@@ -209,7 +194,6 @@ class TicketCog(commands.Cog):
             await ctx.send('❌ Non puoi rimuovere uno staffer!')
             return
 
-        # Remove user from overwrites
         overwrites = ctx.channel.overwrites
         if member in overwrites:
             del overwrites[member]
@@ -219,23 +203,19 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='rename')
     async def rename_ticket(self, ctx, *, new_name: str):
-        # Check if in ticket channel
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
 
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
 
-        # Validate new name
         if len(new_name) > 100:
             await ctx.send('❌ Il nome è troppo lungo! (max 100 caratteri)')
             return
 
-        # Rename channel
         try:
             await ctx.channel.edit(name=new_name)
             await ctx.send(f'✅ Ticket rinominato a `{new_name}`!')
@@ -246,7 +226,6 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='blacklist')
     async def blacklist_user(self, ctx, member: discord.Member = None):
-        # Check permission
         staff_role_id = self.config.get('ticket_staff_role_id')
         if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
@@ -266,61 +245,7 @@ class TicketCog(commands.Cog):
         with open('blacklist.json', 'w') as f:
             json.dump(self.blacklist, f)
 
-    @commands.Cog.listener()
-    async def on_interaction(self, interaction):
-        if interaction.type == InteractionType.component:
-            custom_id = interaction.data.get('custom_id')
-            if custom_id in [btn['id'] for btn in self.config.get('ticket_buttons', [])]:
-                # Find the button config
-                btn_config = next((btn for btn in self.config.get('ticket_buttons', []) if btn['id'] == custom_id), None)
-                if btn_config:
-                    if interaction.user.id in self.blacklist:
-                        await interaction.response.send_message('❌ Sei nella blacklist e non puoi aprire ticket!', ephemeral=True)
-                        return
-                    # Mimic the callback
-                    guild = interaction.guild
-                    category_id = self.config.get('ticket_category_id')
-                    category = guild.get_channel(int(category_id)) if category_id else None
 
-                    staff_role_id = self.config.get('ticket_staff_role_id')
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-                    }
-                    if staff_role_id:
-                        role = guild.get_role(int(staff_role_id))
-                        if role:
-                            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-
-                    # Check if button has additional roles
-                    additional_roles = btn_config.get('roles', [])
-                    for role_id in additional_roles:
-                        role = guild.get_role(int(role_id))
-                        if role:
-                            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-
-                    channel = await guild.create_text_channel(
-                        name=f'ticket-{interaction.user.name}',
-                        category=category,
-                        overwrites=overwrites
-                    )
-
-                    # Store ticket owner
-                    self.ticket_owners[channel.id] = {'owner': interaction.user.id, 'button': custom_id}
-                    self.save_tickets()
-
-                    # Send outside message
-                    outside_message = btn_config.get('outside_message', 'Ticket aperto!')
-                    outside_message = outside_message.replace('{mention}', interaction.user.mention)
-                    await channel.send(outside_message)
-
-                    # Send embed message
-                    embed_message = btn_config.get('embed_message', 'A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket.')
-                    embed = discord.Embed(description=embed_message, color=0x00ff00)
-                    view = CloseTicketView(channel.id, self)
-                    await channel.send(embed=embed, view=view)
-
-                    await interaction.response.send_message(f'🎫 Ticket creato: {channel.mention}', ephemeral=True)
 
 class TicketView(discord.ui.View):
     def __init__(self, buttons, config, cog):
@@ -347,7 +272,6 @@ class TicketButton(discord.ui.Button):
         if interaction.user.id in self.view.cog.blacklist:
             await interaction.response.send_message('❌ Sei nella blacklist e non puoi aprire ticket!', ephemeral=True)
             return
-        # Create ticket channel
         guild = interaction.guild
         category_id = self.config.get('ticket_category_id')
         category = guild.get_channel(int(category_id)) if category_id else None
@@ -362,7 +286,6 @@ class TicketButton(discord.ui.Button):
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
-        # Check if button has additional roles
         additional_roles = self.btn_config.get('roles', [])
         for role_id in additional_roles:
             role = guild.get_role(int(role_id))
@@ -375,19 +298,18 @@ class TicketButton(discord.ui.Button):
             overwrites=overwrites
         )
 
-        # Store ticket owner
-        self.view.cog.ticket_owners[channel.id] = interaction.user.id
+        self.view.cog.ticket_owners[channel.id] = {'owner': interaction.user.id, 'button': self.custom_id}
 
-        # Send outside message
         outside_message = self.btn_config.get('outside_message', 'Ticket aperto!')
         outside_message = outside_message.replace('{mention}', interaction.user.mention)
         await channel.send(outside_message)
 
-        # Send embed message
         embed_message = self.btn_config.get('embed_message', 'A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket.')
         embed = discord.Embed(description=embed_message, color=0x00ff00)
         view = CloseTicketView(channel.id, self.view.cog)
-        await channel.send(embed=embed, view=view)
+        message = await channel.send(embed=embed, view=view)
+        self.view.cog.ticket_owners[channel.id]['close_message_id'] = message.id
+        self.view.cog.save_tickets()
 
         await interaction.response.send_message(f'🎫 Ticket creato: {channel.mention}', ephemeral=True)
 
@@ -399,14 +321,16 @@ class CloseTicketView(discord.ui.View):
 
     @discord.ui.button(label='Chiudi Ticket', style=discord.ButtonStyle.danger, emoji='🔒')
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check if the user is the ticket owner or staff
         channel = self.cog.bot.get_channel(self.channel_id)
         if not channel:
             await interaction.response.send_message('❌ Canale non trovato!', ephemeral=True)
             return
 
         ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
-        ticket_owner = ticket_info.get('owner')
+        if isinstance(ticket_info, int):
+            ticket_owner = ticket_info
+        else:
+            ticket_owner = ticket_info.get('owner')
         staff_role_id = self.cog.config.get('ticket_staff_role_id')
         is_staff = staff_role_id and any(role.id == int(staff_role_id) for role in interaction.user.roles)
 
@@ -414,7 +338,6 @@ class CloseTicketView(discord.ui.View):
             await interaction.response.send_message('❌ Solo uno staffer può chiudere il ticket!', ephemeral=True)
             return
 
-        # Send confirmation
         embed = discord.Embed(
             title='Conferma Chiusura',
             description='Sei sicuro di voler chiudere questo ticket? Verrà generato e inviato il transcript.',
@@ -436,7 +359,6 @@ class ConfirmCloseView(discord.ui.View):
             await interaction.response.send_message('❌ Canale non trovato!', ephemeral=True)
             return
 
-        # Generate transcript
         messages = []
         staff_role_id = self.cog.config.get('ticket_staff_role_id')
         async for message in channel.history(limit=None, oldest_first=True):
@@ -447,7 +369,6 @@ class ConfirmCloseView(discord.ui.View):
                 prefix = '[STAFF] '
             messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
 
-        # Create txt
         filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
         with open(filename, 'w', encoding='utf-8') as f:
             f.write('\n'.join(messages))
@@ -463,10 +384,13 @@ class ConfirmCloseView(discord.ui.View):
         if embed_data.get('footer'):
             embed.set_footer(text=embed_data['footer'])
 
-        # Variables
         ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
-        owner_id = ticket_info.get('owner')
-        button_id = ticket_info.get('button', '')
+        if isinstance(ticket_info, int):
+            owner_id = ticket_info
+            button_id = ''
+        else:
+            owner_id = ticket_info.get('owner')
+            button_id = ticket_info.get('button', '')
         opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
         staffer = interaction.user.mention
         name = channel.name
@@ -476,7 +400,6 @@ class ConfirmCloseView(discord.ui.View):
         if embed.footer:
             embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
 
-        # Send to transcript channel
         transcript_channel_id = self.cog.config.get('ticket_transcript_channel_id')
         if transcript_channel_id:
             transcript_channel = self.cog.bot.get_channel(int(transcript_channel_id))
@@ -485,22 +408,18 @@ class ConfirmCloseView(discord.ui.View):
             else:
                 print('Canale transcript non trovato!')
 
-        # Send DM to owner
         if owner_id:
-            owner = self.cog.bot.get_user(owner_id)
+            owner = channel.guild.get_member(owner_id)
             if owner:
                 try:
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
                     pass  # Can't DM
 
-        # Delete file
         os.remove(filename)
 
-        # Delete channel
         await channel.delete()
 
-        # Remove from ticket owners
         if self.channel_id in self.cog.ticket_owners:
             del self.cog.ticket_owners[self.channel_id]
             self.cog.save_tickets()

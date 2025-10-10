@@ -58,7 +58,7 @@ class ModerationCog(commands.Cog):
                 embed.description = description
                 await member.send(embed=embed)
         except discord.Forbidden:
-            pass  # DM blocked
+            pass
 
     @commands.command(name='ban')
     async def ban(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
@@ -193,17 +193,14 @@ class ModerationCog(commands.Cog):
 
         await ctx.send(f'✅ Warn aggiunto a {member.mention}. Ragione: {reason} (ID: {warn_id})')
 
-        # Send to warn channel
         warn_channel_id = self.config.get('moderation', {}).get('warn_channel_id')
         if warn_channel_id:
             channel = self.bot.get_channel(int(warn_channel_id))
             if channel:
                 await channel.send(f'⚠️ Warn aggiunto a {member.mention} per **{reason}** (ID: {warn_id}) - Totale: {total_warns}/3')
 
-        # DM to user
         await self.send_dm(member, "warn", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), total_warns=total_warns)
 
-        # Check for 3 warns
         if total_warns >= 3:
             try:
                 await member.timeout(datetime.timedelta(days=7), reason="3 warn")
