@@ -141,7 +141,7 @@ class TicketCog(commands.Cog):
                 try:
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
-                    pass  # Can't DM
+                    pass
 
         os.remove(filename)
 
@@ -348,7 +348,7 @@ class CloseTicketView(discord.ui.View):
 
 class ConfirmCloseView(discord.ui.View):
     def __init__(self, channel_id, cog):
-        super().__init__(timeout=300)  # 5 minutes timeout
+        super().__init__(timeout=300)
         self.channel_id = channel_id
         self.cog = cog
 
@@ -414,7 +414,7 @@ class ConfirmCloseView(discord.ui.View):
                 try:
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
-                    pass  # Can't DM
+                    pass
 
         os.remove(filename)
 
