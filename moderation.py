@@ -291,8 +291,14 @@ class ModerationCog(commands.Cog):
                         elif duration.endswith('d'):
                             days = int(duration[:-1])
                             delta = datetime.timedelta(days=days)
+                        elif duration.endswith('m'):
+                            minutes = int(duration[:-1])
+                            delta = datetime.timedelta(minutes=minutes)
+                        elif duration.endswith('s'):
+                            seconds = int(duration[:-1])
+                            delta = datetime.timedelta(seconds=seconds)
                         else:
-                            delta = datetime.timedelta(hours=1)
+                            delta = datetime.timedelta(days=20)
 
                         try:
                             await message.delete()
