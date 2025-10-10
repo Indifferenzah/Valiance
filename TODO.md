@@ -2,4 +2,5 @@
 - [x] Modificare comando transcript in ticket.py per inviare messaggio con allegato e DM
 - [x] Modificare confirm_close in ticket.py per inviare messaggio con allegato e DM
 - [x] Salvare ticket aperti in ticket.json per persistenza
+- [x] Impedire al proprietario del ticket di chiuderlo con il pulsante
 - [ ] Testare le modifiche

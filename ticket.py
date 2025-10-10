@@ -404,11 +404,10 @@ class CloseTicketView(discord.ui.View):
 
         ticket_owner = self.cog.ticket_owners.get(self.channel_id)
         staff_role_id = self.cog.config.get('ticket_staff_role_id')
-        is_owner = interaction.user.id == ticket_owner
         is_staff = staff_role_id and any(role.id == int(staff_role_id) for role in interaction.user.roles)
 
-        if not is_owner and not is_staff:
-            await interaction.response.send_message('❌ Solo il proprietario del ticket o uno staffer può chiudere il ticket!', ephemeral=True)
+        if not is_staff:
+            await interaction.response.send_message('❌ Solo uno staffer può chiudere il ticket!', ephemeral=True)
             return
 
         # Send confirmation
