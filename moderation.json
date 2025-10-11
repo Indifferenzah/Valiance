@@ -1,5 +1,4 @@
-{
-  "3h": [
+{ "3h": [ 
     "scemo di merda",
     "pezzo di merda",
     "merde",
@@ -12,8 +11,11 @@
     "bastardo",
     "testa di cazzo",
     "stronzo",
-    "rincoglionito"
-  ],
+    "rincoglionito",
+    "idiota",
+    "stupido",
+    "deficiente" 
+  ], 
   "6h": [
     "down",
     "ritardato",
@@ -21,17 +23,45 @@
     "mongoloide",
     "aborto",
     "puttana",
-    "troia" ,
+    "troia",
     "zoccola",
-    "Autistico"
-  ],
+    "Autistico",
+    "autista",
+    "handicappato",
+    "deficiente mentale",
+    "ritardato di merda",
+    "fottuto mongolo",
+    "abortito",
+    "troiaccia",
+    "puttanella",
+    "zoccoletta",
+    "baldracca",
+    "bagascia" 
+  ], 
   "12h": [
     "ciccione",
     "obeso",
     "cicciona",
-    "obesa"
-  ],
-  "1d": [],
+    "obesa",
+    "grasso",
+    "grassa",
+    "cicciobombo",
+    "panzona",
+    "maiale",
+    "maiala" 
+  ], 
+  "1d": [
+    "frocio",
+    "finocchio",
+    "culattone",
+    "gay di merda",
+    "lesbica",
+    "checca",
+    "invertito",
+    "omosessuale schifoso",
+    "trans",
+    "culone" 
+  ], 
   "3d": [
     "tumore",
     "tumori",
@@ -39,7 +69,20 @@
     "cancro",
     "negro",
     "negri",
-    "negra"
+    "negra",
+    "nigger",
+    "nigga",
+    "niggers",
+    "niggas",
+    "niggaz",
+    "coon",
+    "spook",
+    "darkie",
+    "mulatto",
+    "nero di merda",
+    "scimmia nera",
+    "zulu",
+    "africano schifoso" 
   ],
   "dm_messages": {
     "ban": {
