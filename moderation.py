@@ -352,5 +352,18 @@ class ModerationCog(commands.Cog):
                         self.save_user_words()
                         return
 
+        if 'discord.gg' in content:
+            if message.author.is_timed_out():
+                return
+
+            try:
+                await message.delete()
+                await message.author.timeout(datetime.timedelta(days=1), reason="Spam Link")
+                await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per 1 giorno a causa di un link invito Discord.')
+                await self.send_dm(message.author, "mute", reason="Spam Link", staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration="1d")
+            except Exception as e:
+                print(f'Errore nel mutare per link invito: {e}')
+            return
+
 async def setup(bot):
     await bot.add_cog(ModerationCog(bot))
