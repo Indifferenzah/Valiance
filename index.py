@@ -507,7 +507,7 @@ async def cleanup_session(guild_id):
 
 @bot.command(name='cwend', help='Termina la partita custom e elimina i canali (solo admin)')
 async def cwend(ctx):
-    if ctx.author.id != 1123622103917285418:
+    if not ctx.author.guild_permissions.administrator and ctx.author.id != 1123622103917285418:
         await ctx.send('❌ Non hai i permessi per usare questo comando!')
         return
     
