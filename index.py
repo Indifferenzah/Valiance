@@ -288,6 +288,9 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    if bot.user in message.mentions:
+        await message.channel.send("Digita `v!help` per vedere una lista di comandi.")
+
     if waiting_for_ruleset and message.author.id == 1123622103917285418:
         config['ruleset_message'] = message.content
         with open('config.json', 'w', encoding='utf-8') as f:
