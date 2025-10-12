@@ -45,8 +45,19 @@ class TicketCog(commands.Cog):
         try:
             if message.author.id == self.bot.user.id:
                 prefix = '[BOT] '
-            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
-                prefix = '[STAFF] '
+            else:
+                # special CW staff role gets its own prefix
+                cw_role_id = 1350073967716732971
+                try:
+                    author_roles = getattr(message.author, 'roles', []) or []
+                    if any(getattr(r, 'id', None) == cw_role_id for r in author_roles):
+                        prefix = '[STAFF CW] '
+                    elif staff_role_id and any(role.id == int(staff_role_id) for role in author_roles):
+                        prefix = '[STAFF] '
+                except Exception:
+                    # fallback to general staff check
+                    if staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
+                        prefix = '[STAFF] '
         except Exception:
             pass
 
