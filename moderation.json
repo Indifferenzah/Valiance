@@ -15,9 +15,19 @@
     "rincoglionito",
     "idiota",
     "stupido",
-    "deficiente"
-  ],
-  "6h": [
+    "deficiente",
+    "tumore",
+    "tumori",
+    "cancri",
+    "cancro",
+    "coon",
+    "spook",
+    "darkie",
+    "mulatto",
+    "nero di merda",
+    "scimmia nera",
+    "zulu",
+    "africano schifoso",
     "down",
     "ritardato",
     "mongolo",
@@ -37,9 +47,7 @@
     "puttanella",
     "zoccoletta",
     "baldracca",
-    "bagascia"
-  ],
-  "12h": [
+    "bagascia",
     "ciccione",
     "obeso",
     "cicciona",
@@ -49,9 +57,7 @@
     "cicciobombo",
     "panzona",
     "maiale",
-    "maiala"
-  ],
-  "1d": [
+    "maiala",
     "frocio",
     "finocchio",
     "culattone",
@@ -70,20 +76,10 @@
     "niggas",
     "niggaz"
   ],
-  "3d": [
-    "tumore",
-    "tumori",
-    "cancri",
-    "cancro",
-    "coon",
-    "spook",
-    "darkie",
-    "mulatto",
-    "nero di merda",
-    "scimmia nera",
-    "zulu",
-    "africano schifoso"
-  ],
+  "6h": [],
+  "12h": [],
+  "1d": [],
+  "3d": [],
   "dm_messages": {
     "ban": {
       "title": "BAN",
