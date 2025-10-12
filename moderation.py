@@ -62,7 +62,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='ban')
     async def ban(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get()
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -155,7 +155,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='unmute')
     async def unmute(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get()
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -172,7 +172,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='warn')
     async def warn(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get()
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -211,7 +211,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='unwarn')
     async def unwarn(self, ctx, warn_id: int):
-        staff_role_id = self.config.get('moderation', {}).get()
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -226,7 +226,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='listwarns')
     async def listwarns(self, ctx, member: discord.Member = None):
-        staff_role_id = self.config.get('moderation', {}).get()
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
