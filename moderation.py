@@ -281,23 +281,6 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nell\'unbannare: {e}')
 
-    @commands.command(name='purge')
-    async def purge(self, ctx, limit: int):
-        staff_role_id = self.config.get('moderation', {}).get()
-        if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
-            await ctx.send('❌ Non hai i permessi per usare questo comando!')
-            return
-
-        if limit < 1 or limit > 100:
-            await ctx.send('❌ Limite tra 1 e 100!')
-            return
-
-        try:
-            deleted = await ctx.channel.purge(limit=limit)
-            await ctx.send(f'✅ Eliminati {len(deleted)} messaggi.', delete_after=5)
-        except Exception as e:
-            await ctx.send(f'❌ Errore: {e}')
-
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:

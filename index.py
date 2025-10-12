@@ -23,6 +23,8 @@ bot = commands.Bot(command_prefix='v!', intents=intents)
 from ticket import TicketCog, TicketView, CloseTicketView
 
 from moderation import ModerationCog
+from log import LogCog
+from autorole import AutoRoleCog
 
 active_sessions = {}
 
@@ -107,6 +109,18 @@ async def on_ready():
 
     await bot.add_cog(ModerationCog(bot))
     print('Moderation cog aggiunto')
+
+    try:
+        await bot.add_cog(LogCog(bot))
+        print('Log cog aggiunto')
+    except Exception as e:
+        print(f'Log cog non aggiunto: {e}')
+
+    try:
+        await bot.add_cog(AutoRoleCog(bot))
+        print('AutoRole cog aggiunto')
+    except Exception as e:
+        print(f'AutoRole cog non aggiunto: {e}')
 
     ticket_cog = bot.get_cog('TicketCog')
     if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
@@ -877,6 +891,15 @@ async def delete(ctx):
 
     view = DeleteConfirmView(ctx)
     await ctx.send(embed=embed, view=view)
+
+@bot.command(name="purge")
+@commands.has_permissions(manage_messages=True)
+async def purge_messages(ctx, limit: int):
+    if limit < 1 or limit > 250:
+        await ctx.send("❌ puoi scegliere numeri tra 1 e 250.")
+        return
+    deleted = await ctx.channel.purge(limit=limit)
+    await ctx.send(f"✅ Ho eliminato {len(deleted)} messaggi.", delete_after=3)
 
 @bot.command(name="ping")
 async def ping(ctx):

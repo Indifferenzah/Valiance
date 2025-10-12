@@ -1,0 +1,20 @@
+{
+    "join_log_channel_id": "1363431774763483216",
+    "leave_log_channel_id": "1363431774763483216",
+    "join_message": {
+        "title": "Join",
+        "description": "{mention} è entrato nel server il {joined_at}.\nAccount creato il {created_at}.\nMembri totali: {total_members}",
+        "color": 3066993,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "leave_message": {
+        "title": "Left",
+        "description": "{mention} ha lasciato il server.\nAccount creato: {created_at}",
+        "color": 15158332,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    }
+}
