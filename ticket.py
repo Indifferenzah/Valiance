@@ -228,13 +228,20 @@ class TicketCog(commands.Cog):
         if ctx.channel.permissions_for(member).read_messages:
             await ctx.send('❌ L\'utente è già nel ticket!')
             return
-
         overwrites = ctx.channel.overwrites
         overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
         await ctx.channel.edit(overwrites=overwrites)
         tpl = self.ticket_messages.get('add')
         if tpl:
             e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+            # thumbnail from template
+            if tpl.get('thumbnail'):
+                e.set_thumbnail(url=tpl.get('thumbnail'))
+            # author header (who performed the action)
+            try:
+                e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+            except Exception:
+                pass
             if tpl.get('footer'):
                 e.set_footer(text=tpl.get('footer'))
             await ctx.send(embed=e)
@@ -278,6 +285,12 @@ class TicketCog(commands.Cog):
         tpl = self.ticket_messages.get('remove')
         if tpl:
             e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0xff0000))
+            if tpl.get('thumbnail'):
+                e.set_thumbnail(url=tpl.get('thumbnail'))
+            try:
+                e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+            except Exception:
+                pass
             if tpl.get('footer'):
                 e.set_footer(text=tpl.get('footer'))
             await ctx.send(embed=e)
@@ -319,6 +332,12 @@ class TicketCog(commands.Cog):
             sent = None
             if tpl:
                 e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', new_name).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+                if tpl.get('thumbnail'):
+                    e.set_thumbnail(url=tpl.get('thumbnail'))
+                try:
+                    e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+                except Exception:
+                    pass
                 if tpl.get('footer'):
                     e.set_footer(text=tpl.get('footer'))
                 sent = await ctx.send(embed=e)
