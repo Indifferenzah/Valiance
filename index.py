@@ -134,7 +134,6 @@ async def on_ready():
 
 @bot.event
 async def on_member_remove(member):
-    """Aggiorna i counter quando un membro esce"""
     if member.guild.id in counter_channels:
         await update_counters(member.guild) 
 
@@ -150,7 +149,6 @@ async def on_voice_state_update(member, before, after):
 
 @bot.event
 async def on_member_join(member):
-    """Invia il messaggio di benvenuto quando un nuovo membro entra e aggiorna i counter"""
     if member.guild.id in counter_channels:
         await update_counters(member.guild)
     
@@ -201,7 +199,6 @@ async def on_member_join(member):
 
 @bot.event
 async def on_member_update(before, after):
-    """Invia il messaggio di boost quando un membro boosta il server"""
     if before.premium_since is None and after.premium_since is not None:
         if 'boost_channel_id' not in config or not config['boost_channel_id']:
             return
@@ -415,7 +412,6 @@ async def create_game_session(guild, lobby_channel):
         await cleanup_session(guild.id)
 
 async def assign_teams(session):
-    """Assegna i giocatori taggati ai team e li sposta nei canali vocali"""
     try:
         red_team = session.tagged_users[:4]
         green_team = session.tagged_users[4:8]
@@ -471,7 +467,6 @@ async def assign_teams(session):
         print(f'Errore nell\'assegnazione dei team: {e}')
 
 async def cleanup_session(guild_id):
-    """Elimina tutti i canali creati per la sessione"""
     if guild_id not in active_sessions:
         return
     
@@ -635,7 +630,6 @@ async def testboost(ctx):
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
 
 async def update_counters(guild):
-    """Aggiorna i nomi dei canali counter con i conteggi attuali"""
     if guild.id not in counter_channels:
         return
 
@@ -687,7 +681,6 @@ async def update_counters(guild):
         print(f'Errore nell\'aggiornamento dei counter: {e}')
 
 async def counter_update_loop():
-    """Loop per aggiornare i counter periodicamente"""
     await bot.wait_until_ready()
     while not bot.is_closed():
         try:
