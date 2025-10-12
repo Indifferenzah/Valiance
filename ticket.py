@@ -46,7 +46,6 @@ class TicketCog(commands.Cog):
             if message.author.id == self.bot.user.id:
                 prefix = '[BOT] '
             else:
-                # special CW staff role gets its own prefix
                 cw_role_id = 1350073967716732971
                 try:
                     author_roles = getattr(message.author, 'roles', []) or []
@@ -55,7 +54,6 @@ class TicketCog(commands.Cog):
                     elif staff_role_id and any(role.id == int(staff_role_id) for role in author_roles):
                         prefix = '[STAFF] '
                 except Exception:
-                    # fallback to general staff check
                     if staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
                         prefix = '[STAFF] '
         except Exception:
@@ -245,10 +243,8 @@ class TicketCog(commands.Cog):
         tpl = self.ticket_messages.get('add')
         if tpl:
             e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
-            # thumbnail from template
             if tpl.get('thumbnail'):
                 e.set_thumbnail(url=tpl.get('thumbnail'))
-            # author header (who performed the action)
             try:
                 e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
             except Exception:

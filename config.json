@@ -52,7 +52,7 @@
       "emoji": "<a:greenstar:1363853986477637793>",
       "style": "secondary",
       "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **Generale**;\nattendi la risposta di uno staffer. <@&1350073958933729371>",
-      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket."
+      "embed_message": "A breve riceverai il supporto richiesto.\nSei pregato di non taggare lo staff."
     },
     {
       "id": "cw",
@@ -60,7 +60,7 @@
       "emoji": "<a:greenstar:1363853986477637793>",
       "style": "secondary",
       "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **CW**;\nattendi la risposta di uno staffer. <@&1350073958933729371> <@&1350073967716732971>",
-      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket.",
+      "embed_message": "A breve riceverai il supporto richiesto.\nSei pregato di non taggare lo staff.",
       "roles": [
         "1350073958933729371",
         "1350073967716732971"
@@ -72,7 +72,7 @@
       "emoji": "<a:greenstar:1363853986477637793>",
       "style": "secondary",
       "outside_message": "Ciao {mention},\nhai aperto un ticket nella categoria **Provino**;\nattendi la risposta di uno staffer. <@&1350073958933729371>",
-      "embed_message": "A breve riceverai il supporto richiesto.\nClicca il bottone sotto per chiudere il ticket."
+      "embed_message": "A breve riceverai il supporto richiesto.\nSei pregato di non taggare lo staff."
     }
   ],
   "moderation": {
