@@ -1,4 +1,5 @@
-{ "3h": [ 
+{
+  "3h": [
     "scemo di merda",
     "pezzo di merda",
     "merde",
@@ -14,8 +15,8 @@
     "rincoglionito",
     "idiota",
     "stupido",
-    "deficiente" 
-  ], 
+    "deficiente"
+  ],
   "6h": [
     "down",
     "ritardato",
@@ -36,8 +37,8 @@
     "puttanella",
     "zoccoletta",
     "baldracca",
-    "bagascia" 
-  ], 
+    "bagascia"
+  ],
   "12h": [
     "ciccione",
     "obeso",
@@ -48,8 +49,8 @@
     "cicciobombo",
     "panzona",
     "maiale",
-    "maiala" 
-  ], 
+    "maiala"
+  ],
   "1d": [
     "frocio",
     "finocchio",
@@ -60,13 +61,6 @@
     "invertito",
     "omosessuale schifoso",
     "trans",
-    "culone" 
-  ], 
-  "3d": [
-    "tumore",
-    "tumori",
-    "cancri",
-    "cancro",
     "negro",
     "negri",
     "negra",
@@ -74,7 +68,13 @@
     "nigga",
     "niggers",
     "niggas",
-    "niggaz",
+    "niggaz"
+  ],
+  "3d": [
+    "tumore",
+    "tumori",
+    "cancri",
+    "cancro",
     "coon",
     "spook",
     "darkie",
@@ -82,7 +82,7 @@
     "nero di merda",
     "scimmia nera",
     "zulu",
-    "africano schifoso" 
+    "africano schifoso"
   ],
   "dm_messages": {
     "ban": {
