@@ -146,6 +146,34 @@ async def on_voice_state_update(member, before, after):
 
     if after.channel and after.channel.id == lobby_id:
         await check_and_create_game(after.channel)
+        return
+
+    try:
+        left_channel = None
+        if before.channel and (not after.channel or (after.channel and before.channel.id != after.channel.id)):
+            left_channel = before.channel
+
+        if left_channel:
+            for gid, session in list(active_sessions.items()):
+                if session.red_voice and session.red_voice.id == left_channel.id or session.green_voice and session.green_voice.id == left_channel.id:
+                    red_empty = True
+                    green_empty = True
+                    try:
+                        if session.red_voice:
+                            red_empty = len([m for m in session.red_voice.members if not m.bot]) == 0
+                    except Exception:
+                        red_empty = True
+                    try:
+                        if session.green_voice:
+                            green_empty = len([m for m in session.green_voice.members if not m.bot]) == 0
+                    except Exception:
+                        green_empty = True
+
+                    if red_empty and green_empty:
+                        await cleanup_session(gid)
+                    break
+    except Exception as e:
+        print(f'Errore nel controllo di pulizia voice: {e}')
 
 @bot.event
 async def on_member_join(member):

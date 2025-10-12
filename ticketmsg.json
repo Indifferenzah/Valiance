@@ -1,0 +1,32 @@
+{
+    "add": {
+        "title": "Utente aggiunto",
+        "description": "{member} è stato aggiunto al ticket da {author}.",
+        "color": 36665,
+        "footer": "Valiance | Ticket System"
+    },
+    "remove": {
+        "title": "Utente rimosso",
+        "description": "{member} è stato rimosso dal ticket da {author}.",
+        "color": 36665,
+        "footer": "Valiance | Ticket System"
+    },
+    "rename": {
+        "title": "Ticket rinominato",
+        "description": "Il ticket è stato rinominato in {name} da {author}.",
+        "color": 36665,
+        "footer": "Valiance | Ticket System"
+    },
+    "close": {
+        "title": "Ticket chiuso",
+        "description": "Il ticket {name} è stato chiuso da {author}.",
+        "color": 36665,
+        "footer": "Valiance | Ticket System"
+    },
+    "transcript": {
+        "title": "Transcript generato",
+        "description": "Il transcript del ticket {name} è stato generato da {author}.",
+        "color": 36665,
+        "footer": "Valiance | Ticket System"
+    }
+}

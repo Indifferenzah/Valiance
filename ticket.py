@@ -12,6 +12,13 @@ class TicketCog(commands.Cog):
         self.bot = bot
         with open('config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
+        self.ticket_messages = {}
+        if os.path.exists('ticketmsg.json'):
+            with open('ticketmsg.json', 'r', encoding='utf-8') as f:
+                try:
+                    self.ticket_messages = json.load(f)
+                except Exception:
+                    self.ticket_messages = {}
         self.ticket_owners = {}
         if os.path.exists('ticket.json'):
             with open('ticket.json', 'r') as f:
@@ -22,22 +29,54 @@ class TicketCog(commands.Cog):
             with open('blacklist.json', 'r') as f:
                 self.blacklist = json.load(f)
 
-    async def _delete_messages_after(self, messages, delay=3):
-        try:
-            await asyncio.sleep(delay)
-            for m in messages:
-                try:
-                    if m is None:
-                        continue
-                    await m.delete()
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
     def save_tickets(self):
         with open('ticket.json', 'w') as f:
             json.dump(self.ticket_owners, f)
+
+    async def _delete_message_later(self, message: discord.Message, delay: int = 3):
+        try:
+            await asyncio.sleep(delay)
+            await message.delete()
+        except Exception:
+            pass
+
+    def _format_message_for_transcript(self, message: discord.Message, staff_role_id=None):
+        prefix = ''
+        try:
+            if message.author.id == self.bot.user.id:
+                prefix = '[BOT] '
+            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
+                prefix = '[STAFF] '
+        except Exception:
+            pass
+
+        parts = []
+        if message.content and message.content.strip():
+            parts.append(message.content)
+
+        for emb in getattr(message, 'embeds', []) or []:
+            emb_parts = []
+            if getattr(emb, 'title', None):
+                emb_parts.append(str(emb.title))
+            if getattr(emb, 'description', None):
+                emb_parts.append(str(emb.description))
+            for f in getattr(emb, 'fields', []) or []:
+                try:
+                    emb_parts.append(f"{f.name}: {f.value}")
+                except Exception:
+                    pass
+            if emb_parts:
+                parts.append('[EMBED] ' + ' | '.join(emb_parts))
+
+        if getattr(message, 'attachments', None):
+            atts = [a.filename for a in message.attachments]
+            if atts:
+                parts.append('[ATTACHMENTS] ' + ', '.join(atts))
+
+        content = ' '.join(parts) if parts else ''
+        time_str = message.created_at.strftime("[%Y-%m-%d %H:%M:%S]") if getattr(message, 'created_at', None) else ''
+        author = getattr(message.author, 'name', str(getattr(message.author, 'id', 'Unknown')))
+        return f"{time_str} {prefix}{author}: {content}"
 
     @commands.command(name='ticketpanel')
     async def ticketpanel(self, ctx):
@@ -83,8 +122,18 @@ class TicketCog(commands.Cog):
             await ctx.send('❌ Non hai i permessi per chiudere i ticket!')
             return
 
-        await ctx.send('🔒 Chiusura ticket...')
-        await ctx.channel.delete()
+        try:
+            asyncio.create_task(self._delete_message_later(ctx.message, 3))
+        except Exception:
+            pass
+
+        embed = discord.Embed(
+            title='Conferma Chiusura',
+            description='Sei sicuro di voler chiudere questo ticket? Verrà generato e inviato il transcript.',
+            color=0xff0000
+        )
+        view = ConfirmCloseView(ctx.channel.id, self)
+        await ctx.send(embed=embed, view=view)
 
     @commands.command(name='transcript')
     async def transcript(self, ctx):
@@ -100,12 +149,7 @@ class TicketCog(commands.Cog):
         messages = []
         staff_role_id = self.config.get('ticket_staff_role_id')
         async for message in ctx.channel.history(limit=None, oldest_first=True):
-            prefix = ''
-            if message.author.id == self.bot.user.id:
-                prefix = '[BOT] '
-            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
-                prefix = '[STAFF] '
-            messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
+            messages.append(self._format_message_for_transcript(message, staff_role_id))
 
         filename = f'transcript-{ctx.channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
         with open(filename, 'w', encoding='utf-8') as f:
@@ -143,7 +187,14 @@ class TicketCog(commands.Cog):
             channel = self.bot.get_channel(int(transcript_channel_id))
             if channel:
                 await channel.send(embed=embed, file=discord.File(filename))
-                await ctx.send('✅ Transcript inviato!')
+                tpl = self.ticket_messages.get('transcript')
+                if tpl:
+                    e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', name).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+                    if tpl.get('footer'):
+                        e.set_footer(text=tpl.get('footer'))
+                    await ctx.send(embed=e)
+                else:
+                    await ctx.send('✅ Transcript inviato!')
             else:
                 await ctx.send('❌ Canale transcript non trovato!')
         else:
@@ -162,10 +213,9 @@ class TicketCog(commands.Cog):
     @commands.command(name='add')
     async def add_user(self, ctx, member: discord.Member):
         try:
-            asyncio.create_task(self._delete_messages_after([ctx.message], 3))
+            asyncio.create_task(self._delete_message_later(ctx.message, 3))
         except Exception:
             pass
-
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
@@ -182,16 +232,19 @@ class TicketCog(commands.Cog):
         overwrites = ctx.channel.overwrites
         overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
         await ctx.channel.edit(overwrites=overwrites)
-
-        await ctx.send(f'✅ {member.mention} è stato aggiunto al ticket!')
+        tpl = self.ticket_messages.get('add')
+        if tpl:
+            e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+            if tpl.get('footer'):
+                e.set_footer(text=tpl.get('footer'))
+            await ctx.send(embed=e)
 
     @commands.command(name='remove')
     async def remove_user(self, ctx, member: discord.Member):
         try:
-            asyncio.create_task(self._delete_messages_after([ctx.message], 3))
+            asyncio.create_task(self._delete_message_later(ctx.message, 3))
         except Exception:
             pass
-
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
@@ -222,49 +275,63 @@ class TicketCog(commands.Cog):
         if member in overwrites:
             del overwrites[member]
         await ctx.channel.edit(overwrites=overwrites)
-
-        await ctx.send(f'✅ {member.mention} è stato rimosso dal ticket!')
+        tpl = self.ticket_messages.get('remove')
+        if tpl:
+            e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0xff0000))
+            if tpl.get('footer'):
+                e.set_footer(text=tpl.get('footer'))
+            await ctx.send(embed=e)
 
     @commands.command(name='rename')
     async def rename_ticket(self, ctx, *, new_name: str):
+        try:
+            asyncio.create_task(self._delete_message_later(ctx.message, 3))
+        except Exception:
+            pass
         if ctx.channel.id not in self.ticket_owners:
-            bot_msg = await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
+            msg = await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             try:
-                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+                asyncio.create_task(self._delete_message_later(msg, 3))
             except Exception:
                 pass
             return
 
         staff_role_id = self.config.get('ticket_staff_role_id')
         if not staff_role_id or not any(role.id == int(staff_role_id) for role in ctx.author.roles):
-            await ctx.send('❌ Non hai i permessi per usare questo comando!')
+            msg = await ctx.send('❌ Non hai i permessi per usare questo comando!')
+            try:
+                asyncio.create_task(self._delete_message_later(msg, 3))
+            except Exception:
+                pass
             return
 
         if len(new_name) > 100:
-            bot_msg = await ctx.send('❌ Il nome è troppo lungo! (max 100 caratteri)')
+            msg = await ctx.send('❌ Il nome è troppo lungo! (max 100 caratteri)')
             try:
-                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+                asyncio.create_task(self._delete_message_later(msg, 3))
             except Exception:
                 pass
             return
 
         try:
             await ctx.channel.edit(name=new_name)
-            bot_msg = await ctx.send(f'✅ Ticket rinominato a `{new_name}`!')
-            try:
-                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
-            except Exception:
-                pass
+            tpl = self.ticket_messages.get('rename')
+            sent = None
+            if tpl:
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', new_name).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+                if tpl.get('footer'):
+                    e.set_footer(text=tpl.get('footer'))
+                sent = await ctx.send(embed=e)
         except discord.Forbidden:
-            bot_msg = await ctx.send('❌ Non ho i permessi per rinominare il canale!')
+            sent = await ctx.send('❌ Non ho i permessi per rinominare il canale!')
             try:
-                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+                asyncio.create_task(self._delete_message_later(sent, 3))
             except Exception:
                 pass
         except Exception as e:
-            bot_msg = await ctx.send(f'❌ Errore nel rinominare: {e}')
+            sent = await ctx.send(f'❌ Errore nel rinominare: {e}')
             try:
-                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+                asyncio.create_task(self._delete_message_later(sent, 3))
             except Exception:
                 pass
 
@@ -406,12 +473,7 @@ class ConfirmCloseView(discord.ui.View):
         messages = []
         staff_role_id = self.cog.config.get('ticket_staff_role_id')
         async for message in channel.history(limit=None, oldest_first=True):
-            prefix = ''
-            if message.author.id == self.cog.bot.user.id:
-                prefix = '[BOT] '
-            elif staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
-                prefix = '[STAFF] '
-            messages.append(f'{message.created_at.strftime("[%Y-%m-%d %H:%M:%S]")} {prefix}{message.author}: {message.content}')
+            messages.append(self.cog._format_message_for_transcript(message, staff_role_id))
 
         filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
         with open(filename, 'w', encoding='utf-8') as f:
