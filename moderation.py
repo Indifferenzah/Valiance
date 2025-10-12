@@ -68,9 +68,9 @@ class ModerationCog(commands.Cog):
             return
 
         try:
+            await self.send_dm(member, "ban", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
             await member.ban(reason=reason)
             await ctx.send(f'✅ {member.mention} è stato bannato. Ragione: {reason}')
-            await self.send_dm(member, "ban", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
         except Exception as e:
             await ctx.send(f'❌ Errore nel bannare: {e}')
 
@@ -82,9 +82,9 @@ class ModerationCog(commands.Cog):
             return
 
         try:
+            await self.send_dm(member, "kick", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
             await member.kick(reason=reason)
             await ctx.send(f'✅ {member.mention} è stato kickato. Ragione: {reason}')
-            await self.send_dm(member, "kick", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
         except Exception as e:
             await ctx.send(f'❌ Errore nel kickare: {e}')
 
