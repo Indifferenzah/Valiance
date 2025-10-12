@@ -78,7 +78,8 @@
   "moderation": {
     "staff_role_id": "1350073958933729371",
     "mod_role_id": "1350073957168058408",
-    "warn_channel_id": "1351184266284896347"
+    "warn_channel_id": "1351184266284896347",
+    "no_automod": "1350073967716732971"
   },
   "ticket_transcript_embed": {
     "title": "Ticket Chiuso",

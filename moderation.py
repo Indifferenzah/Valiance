@@ -62,7 +62,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='ban')
     async def ban(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -155,7 +155,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='unmute')
     async def unmute(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -172,7 +172,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='warn')
     async def warn(self, ctx, member: discord.Member, *, reason="Nessuna ragione specificata"):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -211,7 +211,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='unwarn')
     async def unwarn(self, ctx, warn_id: int):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -226,7 +226,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='listwarns')
     async def listwarns(self, ctx, member: discord.Member = None):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -283,7 +283,7 @@ class ModerationCog(commands.Cog):
 
     @commands.command(name='purge')
     async def purge(self, ctx, limit: int):
-        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1123622103917285418')
+        staff_role_id = self.config.get('moderation', {}).get()
         if ctx.author.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in ctx.author.roles):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
@@ -306,6 +306,24 @@ class ModerationCog(commands.Cog):
         staff_role_id = self.config.get('moderation', {}).get('staff_role_id')
         if staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
             return
+
+        no_automod = self.config.get('moderation', {}).get('no_automod')
+        if no_automod:
+            exempt_ids = []
+            if isinstance(no_automod, list):
+                for v in no_automod:
+                    try:
+                        exempt_ids.append(int(v))
+                    except Exception:
+                        continue
+            else:
+                for part in str(no_automod).split(','):
+                    s = part.strip()
+                    if s.isdigit():
+                        exempt_ids.append(int(s))
+
+            if exempt_ids and any(role.id in exempt_ids for role in message.author.roles):
+                return
 
         content = message.content.lower()
         user_id_str = str(message.author.id)
@@ -336,12 +354,10 @@ class ModerationCog(commands.Cog):
                         try:
                             await message.delete()
                             if word.lower() in [w.lower() for w in user_words_list]:
-                                # repeat, mute
                                 await message.author.timeout(delta, reason=f'Auto-mute per parola vietata ripetuta: {word}')
                                 await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata ripetuta.')
                                 await self.send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata ripetuta: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
                             else:
-                                # first time, warn
                                 await self.send_dm(message.author, "word_warning", word=word)
                                 if user_id_str not in self.user_words:
                                     self.user_words[user_id_str] = []
