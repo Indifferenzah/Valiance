@@ -21,11 +21,9 @@ intents.reactions = True
 bot = commands.Bot(command_prefix='v!', intents=intents)
 
 from ticket import TicketCog, TicketView, CloseTicketView
-
 from moderation import ModerationCog
 from log import LogCog
 from autorole import AutoRoleCog
-from unban import UnbanCog
 
 active_sessions = {}
 
@@ -122,12 +120,6 @@ async def on_ready():
         print('AutoRole cog aggiunto')
     except Exception as e:
         print(f'AutoRole cog non aggiunto: {e}')
-
-    try:
-        await bot.add_cog(UnbanCog(bot))
-        print('Unban cog aggiunto')
-    except Exception as e:
-        print(f'Unban cog non aggiunto: {e}')
 
     ticket_cog = bot.get_cog('TicketCog')
     if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
