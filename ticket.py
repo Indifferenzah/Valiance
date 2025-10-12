@@ -5,6 +5,7 @@ import json
 import os
 from datetime import datetime
 from discord import InteractionType
+import asyncio
 
 class TicketCog(commands.Cog):
     def __init__(self, bot):
@@ -20,6 +21,19 @@ class TicketCog(commands.Cog):
         if os.path.exists('blacklist.json'):
             with open('blacklist.json', 'r') as f:
                 self.blacklist = json.load(f)
+
+    async def _delete_messages_after(self, messages, delay=3):
+        try:
+            await asyncio.sleep(delay)
+            for m in messages:
+                try:
+                    if m is None:
+                        continue
+                    await m.delete()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def save_tickets(self):
         with open('ticket.json', 'w') as f:
@@ -147,6 +161,11 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='add')
     async def add_user(self, ctx, member: discord.Member):
+        try:
+            asyncio.create_task(self._delete_messages_after([ctx.message], 3))
+        except Exception:
+            pass
+
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
@@ -168,6 +187,11 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='remove')
     async def remove_user(self, ctx, member: discord.Member):
+        try:
+            asyncio.create_task(self._delete_messages_after([ctx.message], 3))
+        except Exception:
+            pass
+
         if ctx.channel.id not in self.ticket_owners:
             await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
             return
@@ -204,7 +228,11 @@ class TicketCog(commands.Cog):
     @commands.command(name='rename')
     async def rename_ticket(self, ctx, *, new_name: str):
         if ctx.channel.id not in self.ticket_owners:
-            await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
+            bot_msg = await ctx.send('❌ Questo comando può essere usato solo nei canali ticket!')
+            try:
+                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+            except Exception:
+                pass
             return
 
         staff_role_id = self.config.get('ticket_staff_role_id')
@@ -213,16 +241,32 @@ class TicketCog(commands.Cog):
             return
 
         if len(new_name) > 100:
-            await ctx.send('❌ Il nome è troppo lungo! (max 100 caratteri)')
+            bot_msg = await ctx.send('❌ Il nome è troppo lungo! (max 100 caratteri)')
+            try:
+                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+            except Exception:
+                pass
             return
 
         try:
             await ctx.channel.edit(name=new_name)
-            await ctx.send(f'✅ Ticket rinominato a `{new_name}`!')
+            bot_msg = await ctx.send(f'✅ Ticket rinominato a `{new_name}`!')
+            try:
+                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+            except Exception:
+                pass
         except discord.Forbidden:
-            await ctx.send('❌ Non ho i permessi per rinominare il canale!')
+            bot_msg = await ctx.send('❌ Non ho i permessi per rinominare il canale!')
+            try:
+                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+            except Exception:
+                pass
         except Exception as e:
-            await ctx.send(f'❌ Errore nel rinominare: {e}')
+            bot_msg = await ctx.send(f'❌ Errore nel rinominare: {e}')
+            try:
+                asyncio.create_task(self._delete_messages_after([ctx.message, bot_msg], 3))
+            except Exception:
+                pass
 
     @commands.command(name='blacklist')
     async def blacklist_user(self, ctx, member: discord.Member = None):
