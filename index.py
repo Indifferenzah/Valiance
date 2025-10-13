@@ -324,7 +324,7 @@ async def on_message(message):
         if content.startswith(prefix):
             remaining = content[len(prefix):].strip()
             if remaining.startswith('!') or remaining.startswith('?'):
-                return  # Don't process as command
+                return
 
     await bot.process_commands(message)
 
