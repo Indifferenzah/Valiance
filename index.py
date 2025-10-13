@@ -319,16 +319,6 @@ async def on_message(message):
         await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
         return
 
-    # Check if message starts with a command name (for prefixless commands)
-    content = message.content.strip()
-    if content:
-        first_word = content.split()[0].lower()
-        command_names = [cmd.name for cmd in bot.commands] + [alias for cmd in bot.commands for alias in cmd.aliases]
-        if first_word in command_names:
-            # Prepend a prefix to make it a valid command
-            prefixes = config.get('prefixes', ['!'])
-            message.content = f'{prefixes[0]}{message.content}'
-
     await bot.process_commands(message)
 
     if message.content.lower() in ['wlc', 'welcome', 'benvenuto']:
