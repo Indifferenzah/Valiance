@@ -89,6 +89,9 @@
     "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png"
   },
   "ticket_panel_channel_id": 1350074017536544799,
-  "ticket_panel_message_id": 1426213673571192852,
-  "prefixes": ["v!", "!"]
+  "ticket_panel_message_id": 1427408841200373811,
+  "prefixes": [
+    "v!",
+    "!"
+  ]
 }

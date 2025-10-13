@@ -1,0 +1,36 @@
+import discord
+from discord import app_commands
+
+# Centralized owner id and helpers to avoid circular imports
+OWNER_ID = 1123622103917285418
+
+def is_owner(user_or_id):
+    """Return True if the object or id is the configured owner.
+
+    Accepts either an int user id or an object with .id attribute (Member/User).
+    """
+    try:
+        if isinstance(user_or_id, int):
+            return user_or_id == OWNER_ID
+        return getattr(user_or_id, 'id', None) == OWNER_ID
+    except Exception:
+        return False
+
+def owner_or_has_permissions(**perms):
+    """Return an app_commands.check that allows OWNER_ID to bypass permission checks.
+
+    Usage: @owner_or_has_permissions(administrator=True)
+    """
+    def _predicate(interaction: discord.Interaction):
+        try:
+            if is_owner(interaction.user):
+                return True
+            user_perms = interaction.user.guild_permissions
+            for perm_name, required in perms.items():
+                if getattr(user_perms, perm_name, False) != required:
+                    return False
+            return True
+        except Exception:
+            return False
+
+    return app_commands.check(_predicate)

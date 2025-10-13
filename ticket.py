@@ -6,6 +6,8 @@ import os
 from datetime import datetime
 from discord import InteractionType
 import asyncio
+from discord import app_commands
+from bot_utils import is_owner
 
 class TicketCog(commands.Cog):
     def __init__(self, bot):
@@ -89,7 +91,7 @@ class TicketCog(commands.Cog):
 
     @commands.command(name='ticketpanel')
     async def ticketpanel(self, ctx):
-        if ctx.author.id != 1123622103917285418:
+        if not is_owner(ctx.author):
             await ctx.send('❌ Non hai i permessi per usare questo comando!')
             return
 
@@ -119,6 +121,138 @@ class TicketCog(commands.Cog):
         self.config['ticket_panel_message_id'] = message.id
         with open('config.json', 'w', encoding='utf-8') as f:
             json.dump(self.config, f, indent=2, ensure_ascii=False)
+
+    @app_commands.command(name='ticketpanel', description='Crea un pannello per i ticket di supporto')
+    async def slash_ticketpanel(self, interaction: discord.Interaction):
+        if not is_owner(interaction.user):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        panel = self.config.get('ticket_panel', {})
+        embed = discord.Embed(
+            title=panel.get('title', 'Support Tickets'),
+            description=panel.get('description', 'Click a button to open a ticket'),
+            color=panel.get('color', 0x00ff00)
+        )
+        if panel.get('thumbnail'):
+            embed.set_thumbnail(url=panel['thumbnail'])
+        if panel.get('footer'):
+            embed.set_footer(text=panel['footer'])
+
+        all_buttons = self.config.get('ticket_buttons', [])
+        user_role_ids = [str(role.id) for role in interaction.user.roles]
+        filtered_buttons = []
+        for btn in all_buttons:
+            roles = btn.get('roles', [])
+            if not roles or any(role_id in user_role_ids for role_id in roles):
+                filtered_buttons.append(btn)
+
+        view = TicketView(filtered_buttons, self.config, self)
+        message = await interaction.channel.send(embed=embed, view=view)
+
+        self.config['ticket_panel_channel_id'] = interaction.channel.id
+        self.config['ticket_panel_message_id'] = message.id
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(self.config, f, indent=2, ensure_ascii=False)
+
+        await interaction.response.send_message('✅ Pannello ticket creato!', ephemeral=True)
+
+    @app_commands.command(name='close', description='Avvia la procedura di chiusura del ticket (mostra il pannello di conferma)')
+    async def slash_close(self, interaction: discord.Interaction):
+        # Reuse the logic from close command but adapted to interaction
+        ctx = await self.bot.get_context(interaction.message) if interaction.message else None
+        channel = interaction.channel
+        if channel.id not in self.ticket_owners:
+            await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
+            return
+
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        if staff_role_id and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per chiudere i ticket!', ephemeral=True)
+            return
+
+        try:
+            asyncio.create_task(self._delete_message_later(interaction.message, 3))
+        except Exception:
+            pass
+
+        embed = discord.Embed(
+            title='Conferma Chiusura',
+            description='Sei sicuro di voler chiudere questo ticket? Verrà generato e inviato il transcript.',
+            color=0xff0000
+        )
+        view = ConfirmCloseView(channel.id, self)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name='transcript', description='Genera e invia il transcript del canale ticket')
+    async def slash_transcript(self, interaction: discord.Interaction):
+        channel = interaction.channel
+        if channel.id not in self.ticket_owners:
+            await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
+            return
+
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        if staff_role_id and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per creare transcript!', ephemeral=True)
+            return
+
+        # perform the transcript generation synchronously as in original command
+        messages = []
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        async for message in channel.history(limit=None, oldest_first=True):
+            messages.append(self._format_message_for_transcript(message, staff_role_id))
+
+        filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(messages))
+
+        embed_data = self.config.get('ticket_transcript_embed', {})
+        embed = discord.Embed(
+            title=embed_data.get('title', 'Transcript del Ticket'),
+            description=embed_data.get('description', 'Ecco il transcript del ticket.'),
+            color=embed_data.get('color', 0x00ff00)
+        )
+        if embed_data.get('thumbnail'):
+            embed.set_thumbnail(url=embed_data['thumbnail'])
+        if embed_data.get('footer'):
+            embed.set_footer(text=embed_data['footer'])
+
+        ticket_info = self.ticket_owners.get(channel.id, {})
+        if isinstance(ticket_info, int):
+            owner_id = ticket_info
+            button_id = ''
+        else:
+            owner_id = ticket_info.get('owner')
+            button_id = ticket_info.get('button', '')
+        opener = self.bot.get_user(owner_id).mention if owner_id and self.bot.get_user(owner_id) else 'Unknown'
+        staffer = interaction.user.mention
+        name = channel.name
+
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
+        if embed.footer:
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
+
+        transcript_channel_id = self.config.get('ticket_transcript_channel_id')
+        if transcript_channel_id:
+            channel_out = self.bot.get_channel(int(transcript_channel_id))
+            if channel_out:
+                await channel_out.send(embed=embed, file=discord.File(filename))
+                await interaction.response.send_message('✅ Transcript inviato!', ephemeral=True)
+            else:
+                await interaction.response.send_message('❌ Canale transcript non trovato!', ephemeral=True)
+        else:
+            await interaction.response.send_message('❌ Canale transcript non configurato!', ephemeral=True)
+
+        if owner_id:
+            owner = channel.guild.get_member(owner_id)
+            if owner:
+                try:
+                    await owner.send(embed=embed, file=discord.File(filename))
+                except discord.Forbidden:
+                    pass
+
+        os.remove(filename)
 
     @commands.command(name='close')
     async def close(self, ctx):
@@ -363,6 +497,44 @@ class TicketCog(commands.Cog):
             except Exception:
                 pass
 
+    @app_commands.command(name='rename', description='Rinomina il canale ticket')
+    @app_commands.describe(new_name='Il nuovo nome del canale (max 100 caratteri)')
+    async def slash_rename_ticket(self, interaction: discord.Interaction, new_name: str):
+        channel = interaction.channel
+        try:
+            if channel.id not in self.ticket_owners:
+                await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
+                return
+
+            staff_role_id = self.config.get('ticket_staff_role_id')
+            if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+                await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+                return
+
+            if len(new_name) > 100:
+                await interaction.response.send_message('❌ Il nome è troppo lungo! (max 100 caratteri)', ephemeral=True)
+                return
+
+            await channel.edit(name=new_name)
+            tpl = self.ticket_messages.get('rename')
+            if tpl:
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', new_name).replace('{author}', interaction.user.mention), color=tpl.get('color', 0x00ff00))
+                if tpl.get('thumbnail'):
+                    e.set_thumbnail(url=tpl.get('thumbnail'))
+                try:
+                    e.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+                except Exception:
+                    pass
+                if tpl.get('footer'):
+                    e.set_footer(text=tpl.get('footer'))
+                await interaction.response.send_message(embed=e, ephemeral=False)
+            else:
+                await interaction.response.send_message('✅ Canale rinominato!', ephemeral=False)
+        except discord.Forbidden:
+            await interaction.response.send_message('❌ Non ho i permessi per rinominare il canale!', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel rinominare: {e}', ephemeral=True)
+
     @commands.command(name='blacklist')
     async def blacklist_user(self, ctx, member: discord.Member = None):
         staff_role_id = self.config.get('ticket_staff_role_id')
@@ -383,6 +555,113 @@ class TicketCog(commands.Cog):
 
         with open('blacklist.json', 'w') as f:
             json.dump(self.blacklist, f)
+
+    @app_commands.command(name='blacklist', description='Aggiungi/rimuovi un utente dalla blacklist dei ticket')
+    @app_commands.describe(member='Utente da blacklistare / de-blacklistare')
+    async def slash_blacklist_user(self, interaction: discord.Interaction, member: discord.Member):
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        if member.id in self.blacklist:
+            self.blacklist.remove(member.id)
+            await interaction.response.send_message(f'✅ {member.mention} è stato rimosso dalla blacklist!', ephemeral=False)
+        else:
+            self.blacklist.append(member.id)
+            await interaction.response.send_message(f'✅ {member.mention} è stato aggiunto alla blacklist!', ephemeral=False)
+
+        with open('blacklist.json', 'w') as f:
+            json.dump(self.blacklist, f)
+
+    @app_commands.command(name='add', description='Aggiungi un utente al ticket')
+    @app_commands.describe(member='Utente da aggiungere')
+    async def slash_add_user(self, interaction: discord.Interaction, member: discord.Member):
+        # Always perform the edit and reply to the interaction using the template
+        try:
+            tpl = self.ticket_messages.get('add')
+            if interaction.channel.id not in self.ticket_owners:
+                await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
+                return
+
+            staff_role_id = self.config.get('ticket_staff_role_id')
+            if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+                await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+                return
+
+            overwrites = interaction.channel.overwrites
+            overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            await interaction.channel.edit(overwrites=overwrites)
+
+            # Reply to the command (like /rename) with the configured template
+            if tpl:
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0x00ff00))
+                if tpl.get('thumbnail'):
+                    e.set_thumbnail(url=tpl.get('thumbnail'))
+                try:
+                    e.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+                except Exception:
+                    pass
+                if tpl.get('footer'):
+                    e.set_footer(text=tpl.get('footer'))
+                await interaction.response.send_message(embed=e, ephemeral=False)
+            else:
+                await interaction.response.send_message(f'✅ {member.mention} aggiunto!', ephemeral=False)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
+
+    @app_commands.command(name='remove', description='Rimuovi un utente dal ticket')
+    @app_commands.describe(member='Utente da rimuovere')
+    async def slash_remove_user(self, interaction: discord.Interaction, member: discord.Member):
+        try:
+            tpl = self.ticket_messages.get('remove')
+            if interaction.channel.id not in self.ticket_owners:
+                await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
+                return
+
+            staff_role_id = self.config.get('ticket_staff_role_id')
+            if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+                await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+                return
+
+            if not interaction.channel.permissions_for(member).read_messages:
+                await interaction.response.send_message('❌ L\'utente non è nel ticket!', ephemeral=True)
+                return
+
+            ticket_info = self.ticket_owners.get(interaction.channel.id, {})
+            if isinstance(ticket_info, int):
+                ticket_owner = ticket_info
+            else:
+                ticket_owner = ticket_info.get('owner')
+            if member.id == ticket_owner:
+                await interaction.response.send_message('❌ Non puoi rimuovere il proprietario del ticket!', ephemeral=True)
+                return
+
+            if staff_role_id and any(role.id == int(staff_role_id) for role in member.roles):
+                await interaction.response.send_message('❌ Non puoi rimuovere uno staffer!', ephemeral=True)
+                return
+
+            overwrites = interaction.channel.overwrites
+            if member in overwrites:
+                del overwrites[member]
+            await interaction.channel.edit(overwrites=overwrites)
+
+            # Reply to the command (like /rename) with the configured template
+            if tpl:
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0xff0000))
+                if tpl.get('thumbnail'):
+                    e.set_thumbnail(url=tpl.get('thumbnail'))
+                try:
+                    e.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+                except Exception:
+                    pass
+                if tpl.get('footer'):
+                    e.set_footer(text=tpl.get('footer'))
+                await interaction.response.send_message(embed=e, ephemeral=False)
+            else:
+                await interaction.response.send_message(f'✅ {member.mention} rimosso!', ephemeral=False)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
 
 
 

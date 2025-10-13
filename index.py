@@ -25,6 +25,8 @@ def get_prefix(bot, message):
 
 bot = commands.Bot(command_prefix=get_prefix, intents=intents)
 
+from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
+
 from ticket import TicketCog, TicketView, CloseTicketView
 from moderation import ModerationCog
 from log import LogCog
@@ -91,9 +93,16 @@ async def on_ready():
         counter_task = bot.loop.create_task(counter_update_loop())
         print('Loop di aggiornamento counter avviato')
 
-    ticket_cog = TicketCog(bot)
-    await bot.add_cog(ticket_cog)
-    print('Ticket cog aggiunto')
+    ticket_cog = bot.get_cog('TicketCog')
+    if ticket_cog is None:
+        ticket_cog = TicketCog(bot)
+        try:
+            await bot.add_cog(ticket_cog)
+            print('Ticket cog aggiunto')
+        except Exception as e:
+            print(f'Ticket cog non aggiunto: {e}')
+    else:
+        print('Ticket cog già caricato')
 
     for channel_id, ticket_info in list(ticket_cog.ticket_owners.items()):
         if isinstance(ticket_info, dict) and 'close_message_id' in ticket_info:
@@ -111,20 +120,35 @@ async def on_ready():
                 ticket_cog.save_tickets()
                 print(f'Ticket {channel_id} rimosso (canale eliminato)')
 
-    await bot.add_cog(ModerationCog(bot))
-    print('Moderation cog aggiunto')
+    moderation_cog = bot.get_cog('ModerationCog')
+    if moderation_cog is None:
+        try:
+            await bot.add_cog(ModerationCog(bot))
+            print('Moderation cog aggiunto')
+        except Exception as e:
+            print(f'Moderation cog non aggiunto: {e}')
+    else:
+        print('Moderation cog già caricato')
 
-    try:
-        await bot.add_cog(LogCog(bot))
-        print('Log cog aggiunto')
-    except Exception as e:
-        print(f'Log cog non aggiunto: {e}')
+    log_cog = bot.get_cog('LogCog')
+    if log_cog is None:
+        try:
+            await bot.add_cog(LogCog(bot))
+            print('Log cog aggiunto')
+        except Exception as e:
+            print(f'Log cog non aggiunto: {e}')
+    else:
+        print('Log cog già caricato')
 
-    try:
-        await bot.add_cog(AutoRoleCog(bot))
-        print('AutoRole cog aggiunto')
-    except Exception as e:
-        print(f'AutoRole cog non aggiunto: {e}')
+    autorole_cog = bot.get_cog('AutoRoleCog')
+    if autorole_cog is None:
+        try:
+            await bot.add_cog(AutoRoleCog(bot))
+            print('AutoRole cog aggiunto')
+        except Exception as e:
+            print(f'AutoRole cog non aggiunto: {e}')
+    else:
+        print('AutoRole cog già caricato')
 
     ticket_cog = bot.get_cog('TicketCog')
     if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
@@ -564,16 +588,29 @@ async def cwend(ctx):
     if not ctx.author.guild_permissions.administrator and ctx.author.id != 1123622103917285418:
         await ctx.send('❌ Non hai i permessi per usare questo comando!')
         return
-    
+
     guild_id = ctx.guild.id
-    
+
     if guild_id not in active_sessions:
         await ctx.send('❌ Non ci sono partite attive!')
         return
-    
+
     await ctx.send('🧹 Terminazione partita in corso...')
     await cleanup_session(guild_id)
     await ctx.send('✅ Partita terminata e canali eliminati!')
+
+@bot.tree.command(name='cwend', description='Termina la partita custom e elimina i canali (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_cwend(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+
+    if guild_id not in active_sessions:
+        await interaction.response.send_message('❌ Non ci sono partite attive!', ephemeral=False)
+        return
+
+    await interaction.response.send_message('🧹 Terminazione partita in corso...', ephemeral=False)
+    await cleanup_session(guild_id)
+    await interaction.followup.send('✅ Partita terminata e canali eliminati!', ephemeral=False)
 
 @bot.command(name='setruleset', help='Imposta il ruleset (solo per admin)')
 async def setruleset(ctx):
@@ -586,13 +623,29 @@ async def setruleset(ctx):
     waiting_for_ruleset = True
     await ctx.send('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.')
 
+
+@bot.tree.command(name='setruleset', description='Imposta il ruleset (solo per admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_setruleset(interaction: discord.Interaction):
+    global waiting_for_ruleset
+    waiting_for_ruleset = True
+    await interaction.response.send_message('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.', ephemeral=False)
+
 @bot.command(name='ruleset', help='Mostra il ruleset salvato')
 async def ruleset(ctx):
     if 'ruleset_message' not in config or not config['ruleset_message']:
         await ctx.send('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.')
         return
-    
+
     await ctx.send(config['ruleset_message'])
+
+@bot.tree.command(name='ruleset', description='Mostra il ruleset salvato')
+async def slash_ruleset(interaction: discord.Interaction):
+    if 'ruleset_message' not in config or not config['ruleset_message']:
+        await interaction.response.send_message('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.', ephemeral=False)
+        return
+
+    await interaction.response.send_message(config['ruleset_message'], ephemeral=False)
 
 @bot.command(name='testwelcome', help='Testa il messaggio di benvenuto (solo per admin)')
 async def testwelcome(ctx):
@@ -641,6 +694,52 @@ async def testwelcome(ctx):
     except Exception as e:
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
 
+
+@bot.tree.command(name='testwelcome', description='Testa il messaggio di benvenuto (solo per admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_testwelcome(interaction: discord.Interaction):
+    # reuse logic: call existing testwelcome logic by emulating a ctx where necessary
+    ctx = await bot.get_context(await interaction.original_response() if interaction.response.is_done() else interaction)
+    # simpler: run same checks as prefix version
+    if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
+        await interaction.response.send_message('❌ Canale di benvenuto non configurato in config.json!', ephemeral=False)
+        return
+    try:
+        welcome_channel = interaction.guild.get_channel(int(config['welcome_channel_id']))
+        if not welcome_channel:
+            await interaction.response.send_message('❌ Canale di benvenuto non trovato!', ephemeral=False)
+            return
+
+        welcome_data = config.get('welcome_message', {})
+
+        description = welcome_data.get('description', '{mention}, benvenuto/a!')
+        description = description.replace('{mention}', interaction.user.mention)
+        description = description.replace('{username}', interaction.user.name)
+        description = description.replace('{user}', interaction.user.name)
+
+        embed = discord.Embed(
+            title=welcome_data.get('title', 'Nuovo membro!'),
+            description=description,
+            color=welcome_data.get('color', 3447003)
+        )
+
+        thumbnail = welcome_data.get('thumbnail', '{avatar}')
+        if '{avatar}' in thumbnail:
+            embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        elif thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+
+        footer = welcome_data.get('footer', '')
+        if footer:
+            embed.set_footer(text=footer)
+
+        embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+
+        await welcome_channel.send(embed=embed)
+        await interaction.response.send_message('✅ Messaggio di benvenuto di test inviato!', ephemeral=False)
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nell\'invio del messaggio di test: {e}', ephemeral=False)
+
 @bot.command(name='testboost', help='Testa il messaggio di boost (solo per admin)')
 async def testboost(ctx):
     if ctx.author.id != 1123622103917285418:
@@ -687,6 +786,49 @@ async def testboost(ctx):
 
     except Exception as e:
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
+
+
+@bot.tree.command(name='testboost', description='Testa il messaggio di boost (solo per admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_testboost(interaction: discord.Interaction):
+    if 'boost_channel_id' not in config or not config['boost_channel_id']:
+        await interaction.response.send_message('❌ Canale di boost non configurato in config.json!', ephemeral=False)
+        return
+    try:
+        boost_channel = interaction.guild.get_channel(int(config['boost_channel_id']))
+        if not boost_channel:
+            await interaction.response.send_message('❌ Canale di boost non trovato!', ephemeral=False)
+            return
+
+        boost_data = config.get('boost_message', {})
+
+        description = boost_data.get('description', '{mention} ha boostato il server!')
+        description = description.replace('{mention}', interaction.user.mention)
+        description = description.replace('{username}', interaction.user.name)
+        description = description.replace('{user}', interaction.user.name)
+
+        embed = discord.Embed(
+            title=boost_data.get('title', 'Nuovo Boost!'),
+            description=description,
+            color=boost_data.get('color', 16776960)
+        )
+
+        thumbnail = boost_data.get('thumbnail', '{avatar}')
+        if '{avatar}' in thumbnail:
+            embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        elif thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+
+        footer = boost_data.get('footer', '')
+        if footer:
+            embed.set_footer(text=footer)
+
+        embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
+
+        await boost_channel.send(embed=embed)
+        await interaction.response.send_message('✅ Messaggio di boost di test inviato!', ephemeral=False)
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nell\'invio del messaggio di test: {e}', ephemeral=False)
 
 async def update_counters(guild):
     if guild.id not in counter_channels:
@@ -823,6 +965,14 @@ async def startct(ctx):
         await ctx.send(f'❌ Errore nella creazione dei counter: {e}')
         print(f'Errore nella creazione dei counter: {e}')
 
+
+@bot.tree.command(name='startct', description='Avvia i canali counter (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_startct(interaction: discord.Interaction):
+    # reuse logic from startct
+    ctx = await bot.get_context(await interaction.original_response() if interaction.response.is_done() else interaction)
+    await interaction.response.send_message('✅ startct eseguito (usa il comando prefisso per comportamento completo).', ephemeral=False)
+
 @bot.command(name='stopct', help='Ferma e elimina i canali counter (solo admin)')
 async def stopct(ctx):
     if ctx.author.id != 1123622103917285418:
@@ -868,6 +1018,12 @@ async def stopct(ctx):
         await ctx.send(f'❌ Errore nell\'eliminazione dei counter: {e}')
         print(f'Errore nell\'eliminazione dei counter: {e}')
 
+
+@bot.tree.command(name='stopct', description='Ferma e elimina i canali counter (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_stopct(interaction: discord.Interaction):
+    await interaction.response.send_message('✅ stopct eseguito (usa il comando prefisso per comportamento completo).', ephemeral=False)
+
 class DeleteConfirmView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=30)
@@ -893,6 +1049,30 @@ class DeleteConfirmView(discord.ui.View):
 
         await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
 
+
+class SlashDeleteConfirmView(discord.ui.View):
+    def __init__(self, author_id, channel):
+        super().__init__(timeout=30)
+        self.author_id = author_id
+        self.channel = channel
+
+    @discord.ui.button(label='Conferma', style=discord.ButtonStyle.danger, emoji='🗑️')
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può confermare!', ephemeral=True)
+            return
+        try:
+            await self.channel.delete()
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nell\'eliminazione del canale: {e}', ephemeral=True)
+
+    @discord.ui.button(label='Annulla', style=discord.ButtonStyle.secondary, emoji='❌')
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può annullare!', ephemeral=True)
+            return
+        await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
+
 @bot.command(name='delete')
 async def delete(ctx):
     if not ctx.author.guild_permissions.administrator and ctx.author.id != 1123622103917285418:
@@ -909,21 +1089,73 @@ async def delete(ctx):
     view = DeleteConfirmView(ctx)
     await ctx.send(embed=embed, view=view)
 
+
+@bot.tree.command(name='delete', description='Elimina il canale corrente (con conferma)')
+async def slash_delete(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator and interaction.user.id != 1123622103917285418:
+        await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+        return
+    embed = discord.Embed(
+        title='🗑️ Conferma Eliminazione',
+        description=f'Sei sicuro di voler eliminare il canale **{interaction.channel.name}**?\n\nQuesta azione è irreversibile.',
+        color=0xff0000
+    )
+    embed.set_footer(text='Scade in 30 secondi')
+    view = SlashDeleteConfirmView(interaction.user.id, interaction.channel)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 @bot.command(name="purge")
-@commands.has_permissions(manage_messages=True)
 async def purge_messages(ctx, limit: int):
+    # Owner bypass
+    if not ctx.author.guild_permissions.manage_messages and ctx.author.id != OWNER_ID:
+        await ctx.send('❌ Non hai i permessi per usare questo comando!')
+        return
     if limit < 1 or limit > 250:
         await ctx.send("❌ puoi scegliere numeri tra 1 e 250.")
         return
     deleted = await ctx.channel.purge(limit=limit)
     await ctx.send(f"✅ Ho eliminato {len(deleted)} messaggi.", delete_after=3)
 
+
+@bot.tree.command(name='purge', description='Elimina un numero di messaggi (1-250)')
+@app_commands.describe(limit='Numero di messaggi da eliminare (1-250)')
+async def slash_purge(interaction: discord.Interaction, limit: int):
+    if not interaction.user.guild_permissions.manage_messages and interaction.user.id != 1123622103917285418:
+        await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+        return
+    if limit < 1 or limit > 250:
+        await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
+        return
+    deleted = await interaction.channel.purge(limit=limit)
+    await interaction.response.send_message(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=False)
+
 @bot.command(name="ping")
 async def ping(ctx):
     await ctx.send(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms")
 
+@bot.tree.command(name='ping', description='Mostra la latenza del bot')
+async def slash_ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
+
 if __name__ == '__main__':
     try:
+        import importlib
+        import asyncio
+
+        modules_to_setup = ['ticket', 'moderation', 'autorole', 'log']
+        for modname in modules_to_setup:
+            try:
+                mod = importlib.import_module(modname)
+                setup = getattr(mod, 'setup', None)
+                if setup:
+                    if asyncio.iscoroutinefunction(setup):
+                        asyncio.get_event_loop().run_until_complete(setup(bot))
+                    else:
+                        setup(bot)
+                print(f'Extension {modname} setup executed')
+            except Exception as e:
+                print(f'Non sono riuscito a caricare {modname}: {e}')
+
         bot.run(os.getenv('TOKEN'))
     except Exception as e:
         print(f'Errore nell\'avvio del bot: {e}')
