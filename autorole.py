@@ -98,6 +98,7 @@ class AutoRoleCog(commands.Cog):
         except TimeoutError:
             await ctx.send('❌ Timeout! Riprova il comando.')
 
+    @app_commands.default_permissions(administrator=True)
     @app_commands.command(name='createreact', description='Crea un messaggio di reazione per assegnare ruoli')
     async def slash_createreact(self, interaction: discord.Interaction):
         # This is interactive and relies on messages; keep it public
