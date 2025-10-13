@@ -318,6 +318,14 @@ async def on_message(message):
         await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
         return
 
+    content = message.content.strip()
+    prefixes = config.get('prefixes', ['v!'])
+    for prefix in prefixes:
+        if content.startswith(prefix):
+            remaining = content[len(prefix):].strip()
+            if remaining.startswith('!') or remaining.startswith('?'):
+                return  # Don't process as command
+
     await bot.process_commands(message)
 
     if message.content.lower() in ['wlc', 'welcome', 'benvenuto']:
