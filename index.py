@@ -4,6 +4,7 @@ from discord import app_commands
 import json
 import asyncio
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,7 +19,11 @@ intents.members = True
 intents.message_content = True
 intents.reactions = True
 
-bot = commands.Bot(command_prefix='v!', intents=intents)
+def get_prefix(bot, message):
+    prefixes = config.get('prefixes', ['v!'])
+    return commands.when_mentioned_or(*prefixes)(bot, message)
+
+bot = commands.Bot(command_prefix=get_prefix, intents=intents)
 
 from ticket import TicketCog, TicketView, CloseTicketView
 from moderation import ModerationCog
@@ -48,7 +53,7 @@ class GameSession:
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send('❌ Comando inesistente! Fai `v!help` per vedere una lista di comandi disponibili.')
+        await ctx.send('❌ Comando inesistente! Fai `!help` per vedere una lista di comandi disponibili.')
     else:
         pass
 
@@ -288,8 +293,11 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    if bot.user in message.mentions:
-        await message.channel.send("Digita `v!help` per vedere una lista di comandi.")
+    # Check if message is just the bot mention
+    mention_pattern = f'<@!?{bot.user.id}>'
+    if re.match(f'^{mention_pattern}$', message.content.strip()):
+        await message.channel.send("Digita `!help` per vedere una lista di comandi.")
+        return
 
     if waiting_for_ruleset and message.author.id == 1123622103917285418:
         config['ruleset_message'] = message.content
@@ -298,7 +306,7 @@ async def on_message(message):
 
         waiting_for_ruleset = False
         await message.add_reaction('✅')
-        await message.channel.send('✅ Ruleset salvato! Usa `v!ruleset` per visualizzarlo.')
+        await message.channel.send('✅ Ruleset salvato! Usa `!ruleset` per visualizzarlo.')
         return
 
     if waiting_for_welcome and message.author.id == 1123622103917285418:
@@ -310,7 +318,17 @@ async def on_message(message):
         await message.add_reaction('✅')
         await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
         return
-    
+
+    # Check if message starts with a command name (for prefixless commands)
+    content = message.content.strip()
+    if content:
+        first_word = content.split()[0].lower()
+        command_names = [cmd.name for cmd in bot.commands] + [alias for cmd in bot.commands for alias in cmd.aliases]
+        if first_word in command_names:
+            # Prepend a prefix to make it a valid command
+            prefixes = config.get('prefixes', ['!'])
+            message.content = f'{prefixes[0]}{message.content}'
+
     await bot.process_commands(message)
 
     if message.content.lower() in ['wlc', 'welcome', 'benvenuto']:
@@ -443,7 +461,7 @@ async def create_game_session(guild, lobby_channel):
             color=discord.Color.blue()
         )
 
-        embed.set_footer(text='Usa `v!cwend` per terminare la partita ed eliminare tutti i canali.')
+        embed.set_footer(text='Usa `!cwend` per terminare la partita ed eliminare tutti i canali.')
 
         await session.text_channel.send(embed=embed)
 
@@ -481,7 +499,7 @@ async def assign_teams(session):
             inline=False
         )
 
-        embed.set_footer(text='Buon divertimento! Usa `v!cwend` per terminare')
+        embed.set_footer(text='Buon divertimento! Usa `!cwend` per terminare')
 
         await session.text_channel.send(embed=embed)
 
@@ -574,7 +592,7 @@ async def setruleset(ctx):
 @bot.command(name='ruleset', help='Mostra il ruleset salvato')
 async def ruleset(ctx):
     if 'ruleset_message' not in config or not config['ruleset_message']:
-        await ctx.send('❌ Nessun ruleset configurato! Usa `v!setruleset` per impostarne uno.')
+        await ctx.send('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.')
         return
     
     await ctx.send(config['ruleset_message'])
@@ -748,7 +766,7 @@ async def startct(ctx):
     guild = ctx.guild
     
     if guild.id in counter_channels:
-        await ctx.send('❌ I counter sono già attivi! Usa `v!stopct` per fermarli prima.')
+        await ctx.send('❌ I counter sono già attivi! Usa `!stopct` per fermarli prima.')
         return
     
     try:
