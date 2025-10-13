@@ -196,6 +196,9 @@ class TicketCog(commands.Cog):
             await interaction.response.send_message('❌ Non hai i permessi per creare transcript!', ephemeral=True)
             return
 
+        # Defer because building the transcript can take time
+        await interaction.response.defer(ephemeral=True)
+
         # perform the transcript generation synchronously as in original command
         messages = []
         staff_role_id = self.config.get('ticket_staff_role_id')
@@ -238,11 +241,20 @@ class TicketCog(commands.Cog):
             channel_out = self.bot.get_channel(int(transcript_channel_id))
             if channel_out:
                 await channel_out.send(embed=embed, file=discord.File(filename))
-                await interaction.response.send_message('✅ Transcript inviato!', ephemeral=True)
+                try:
+                    await interaction.followup.send('✅ Transcript inviato!', ephemeral=True)
+                except Exception:
+                    pass
             else:
-                await interaction.response.send_message('❌ Canale transcript non trovato!', ephemeral=True)
+                try:
+                    await interaction.followup.send('❌ Canale transcript non trovato!', ephemeral=True)
+                except Exception:
+                    pass
         else:
-            await interaction.response.send_message('❌ Canale transcript non configurato!', ephemeral=True)
+            try:
+                await interaction.followup.send('❌ Canale transcript non configurato!', ephemeral=True)
+            except Exception:
+                pass
 
         if owner_id:
             owner = channel.guild.get_member(owner_id)

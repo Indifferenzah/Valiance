@@ -605,12 +605,12 @@ async def slash_cwend(interaction: discord.Interaction):
     guild_id = interaction.guild.id
 
     if guild_id not in active_sessions:
-        await interaction.response.send_message('❌ Non ci sono partite attive!', ephemeral=False)
+        await interaction.response.send_message('❌ Non ci sono partite attive!', ephemeral=True)
         return
 
-    await interaction.response.send_message('🧹 Terminazione partita in corso...', ephemeral=False)
+    await interaction.response.send_message('🧹 Terminazione partita in corso...', ephemeral=True)
     await cleanup_session(guild_id)
-    await interaction.followup.send('✅ Partita terminata e canali eliminati!', ephemeral=False)
+    await interaction.followup.send('✅ Partita terminata e canali eliminati!', ephemeral=True)
 
 @bot.command(name='setruleset', help='Imposta il ruleset (solo per admin)')
 async def setruleset(ctx):
@@ -736,7 +736,7 @@ async def slash_testwelcome(interaction: discord.Interaction):
         embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
 
         await welcome_channel.send(embed=embed)
-        await interaction.response.send_message('✅ Messaggio di benvenuto di test inviato!', ephemeral=False)
+        await interaction.response.send_message('✅ Messaggio di benvenuto di test inviato!', ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nell\'invio del messaggio di test: {e}', ephemeral=False)
 
@@ -826,7 +826,7 @@ async def slash_testboost(interaction: discord.Interaction):
         embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
 
         await boost_channel.send(embed=embed)
-        await interaction.response.send_message('✅ Messaggio di boost di test inviato!', ephemeral=False)
+        await interaction.response.send_message('✅ Messaggio di boost di test inviato!', ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nell\'invio del messaggio di test: {e}', ephemeral=False)
 
@@ -1120,14 +1120,30 @@ async def purge_messages(ctx, limit: int):
 @bot.tree.command(name='purge', description='Elimina un numero di messaggi (1-250)')
 @app_commands.describe(limit='Numero di messaggi da eliminare (1-250)')
 async def slash_purge(interaction: discord.Interaction, limit: int):
-    if not interaction.user.guild_permissions.manage_messages and interaction.user.id != 1123622103917285418:
-        await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
-        return
-    if limit < 1 or limit > 250:
-        await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
-        return
-    deleted = await interaction.channel.purge(limit=limit)
-    await interaction.response.send_message(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=False)
+    try:
+        if not interaction.user.guild_permissions.manage_messages and interaction.user.id != OWNER_ID:
+            # reply only to the user
+            await interaction.response.send_message('❌ Non hai abbastanza permessi!', ephemeral=True)
+            return
+
+        if limit < 1 or limit > 250:
+            await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
+            return
+
+        # defer because purge can take longer than the interaction window
+        await interaction.response.defer(ephemeral=False)
+        deleted = await interaction.channel.purge(limit=limit)
+        await interaction.followup.send(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=True)
+    except discord.Forbidden:
+        try:
+            await interaction.followup.send('❌ Non ho i permessi per eliminare messaggi in questo canale!', ephemeral=True)
+        except Exception:
+            pass
+    except Exception as e:
+        try:
+            await interaction.followup.send(f'❌ Errore durante la purge: {e}', ephemeral=True)
+        except Exception:
+            pass
 
 @bot.command(name="ping")
 async def ping(ctx):
@@ -1136,6 +1152,39 @@ async def ping(ctx):
 @bot.tree.command(name='ping', description='Mostra la latenza del bot')
 async def slash_ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
+
+
+# Global app command error handler
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    try:
+        # Permission check failures
+        if isinstance(error, app_commands.errors.CheckFailure):
+            try:
+                # permission-denied messages should be visible only to the invoking user
+                if interaction.response.is_done():
+                    await interaction.followup.send('❌ Non hai abbastanza permessi!', ephemeral=True)
+                else:
+                    await interaction.response.send_message('❌ Non hai abbastanza permessi!', ephemeral=True)
+            except Exception:
+                pass
+            return
+
+        # Unknown interaction / not found errors sometimes bubble here from followups
+        if isinstance(error, discord.errors.NotFound):
+            print(f'Ignored NotFound in app command: {error}')
+            return
+
+        # Generic fallback message
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(f'❌ Errore nel comando: {error}', ephemeral=True)
+            else:
+                await interaction.response.send_message(f'❌ Errore nel comando: {error}', ephemeral=True)
+        except Exception:
+            pass
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     try:
