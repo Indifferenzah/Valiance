@@ -698,9 +698,7 @@ async def testwelcome(ctx):
 @bot.tree.command(name='testwelcome', description='Testa il messaggio di benvenuto (solo per admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_testwelcome(interaction: discord.Interaction):
-    # reuse logic: call existing testwelcome logic by emulating a ctx where necessary
     ctx = await bot.get_context(await interaction.original_response() if interaction.response.is_done() else interaction)
-    # simpler: run same checks as prefix version
     if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
         await interaction.response.send_message('❌ Canale di benvenuto non configurato in config.json!', ephemeral=False)
         return
@@ -969,7 +967,6 @@ async def startct(ctx):
 @bot.tree.command(name='startct', description='Avvia i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_startct(interaction: discord.Interaction):
-    # reuse logic from startct
     ctx = await bot.get_context(await interaction.original_response() if interaction.response.is_done() else interaction)
     await interaction.response.send_message('✅ startct eseguito (usa il comando prefisso per comportamento completo).', ephemeral=False)
 
@@ -1106,7 +1103,6 @@ async def slash_delete(interaction: discord.Interaction):
 
 @bot.command(name="purge")
 async def purge_messages(ctx, limit: int):
-    # Owner bypass
     if not ctx.author.guild_permissions.manage_messages and ctx.author.id != OWNER_ID:
         await ctx.send('❌ Non hai i permessi per usare questo comando!')
         return
@@ -1122,7 +1118,6 @@ async def purge_messages(ctx, limit: int):
 async def slash_purge(interaction: discord.Interaction, limit: int):
     try:
         if not interaction.user.guild_permissions.manage_messages and interaction.user.id != OWNER_ID:
-            # reply only to the user
             await interaction.response.send_message('❌ Non hai abbastanza permessi!', ephemeral=True)
             return
 
@@ -1130,7 +1125,6 @@ async def slash_purge(interaction: discord.Interaction, limit: int):
             await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
             return
 
-        # defer because purge can take longer than the interaction window
         await interaction.response.defer(ephemeral=False)
         deleted = await interaction.channel.purge(limit=limit)
         await interaction.followup.send(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=True)
@@ -1154,14 +1148,11 @@ async def slash_ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
 
 
-# Global app command error handler
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     try:
-        # Permission check failures
         if isinstance(error, app_commands.errors.CheckFailure):
             try:
-                # permission-denied messages should be visible only to the invoking user
                 if interaction.response.is_done():
                     await interaction.followup.send('❌ Non hai abbastanza permessi!', ephemeral=True)
                 else:
@@ -1170,12 +1161,10 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
                 pass
             return
 
-        # Unknown interaction / not found errors sometimes bubble here from followups
         if isinstance(error, discord.errors.NotFound):
             print(f'Ignored NotFound in app command: {error}')
             return
 
-        # Generic fallback message
         try:
             if interaction.response.is_done():
                 await interaction.followup.send(f'❌ Errore nel comando: {error}', ephemeral=True)

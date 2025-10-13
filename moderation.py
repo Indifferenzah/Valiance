@@ -325,7 +325,6 @@ class ModerationCog(commands.Cog):
         try:
             await interaction.response.send_message(f'✅ Warn aggiunto a {member.mention}. Ragione: {reason} (ID: {warn_id})', ephemeral=True)
         except Exception:
-            # fallback if response already used
             await interaction.followup.send(f'✅ Warn aggiunto a {member.mention}. Ragione: {reason} (ID: {warn_id})', ephemeral=True)
 
         warn_channel_id = self.config.get('moderation', {}).get('warn_channel_id')

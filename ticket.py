@@ -159,7 +159,6 @@ class TicketCog(commands.Cog):
 
     @app_commands.command(name='close', description='Avvia la procedura di chiusura del ticket (mostra il pannello di conferma)')
     async def slash_close(self, interaction: discord.Interaction):
-        # Reuse the logic from close command but adapted to interaction
         ctx = await self.bot.get_context(interaction.message) if interaction.message else None
         channel = interaction.channel
         if channel.id not in self.ticket_owners:
@@ -196,10 +195,8 @@ class TicketCog(commands.Cog):
             await interaction.response.send_message('❌ Non hai i permessi per creare transcript!', ephemeral=True)
             return
 
-        # Defer because building the transcript can take time
         await interaction.response.defer(ephemeral=True)
 
-        # perform the transcript generation synchronously as in original command
         messages = []
         staff_role_id = self.config.get('ticket_staff_role_id')
         async for message in channel.history(limit=None, oldest_first=True):
@@ -389,10 +386,8 @@ class TicketCog(commands.Cog):
         tpl = self.ticket_messages.get('add')
         if tpl:
             e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
-            # thumbnail from template
             if tpl.get('thumbnail'):
                 e.set_thumbnail(url=tpl.get('thumbnail'))
-            # author header (who performed the action)
             try:
                 e.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
             except Exception:
@@ -589,7 +584,6 @@ class TicketCog(commands.Cog):
     @app_commands.command(name='add', description='Aggiungi un utente al ticket')
     @app_commands.describe(member='Utente da aggiungere')
     async def slash_add_user(self, interaction: discord.Interaction, member: discord.Member):
-        # Always perform the edit and reply to the interaction using the template
         try:
             tpl = self.ticket_messages.get('add')
             if interaction.channel.id not in self.ticket_owners:
@@ -605,7 +599,6 @@ class TicketCog(commands.Cog):
             overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
             await interaction.channel.edit(overwrites=overwrites)
 
-            # Reply to the command (like /rename) with the configured template
             if tpl:
                 e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0x00ff00))
                 if tpl.get('thumbnail'):
@@ -658,7 +651,6 @@ class TicketCog(commands.Cog):
                 del overwrites[member]
             await interaction.channel.edit(overwrites=overwrites)
 
-            # Reply to the command (like /rename) with the configured template
             if tpl:
                 e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0xff0000))
                 if tpl.get('thumbnail'):

@@ -1,7 +1,6 @@
 import discord
 from discord import app_commands
 
-# Centralized owner id and helpers to avoid circular imports
 OWNER_ID = 1123622103917285418
 
 def is_owner(user_or_id):

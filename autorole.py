@@ -100,7 +100,6 @@ class AutoRoleCog(commands.Cog):
 
     @app_commands.command(name='createreact', description='Crea un messaggio di reazione per assegnare ruoli')
     async def slash_createreact(self, interaction: discord.Interaction):
-        # This is interactive and relies on messages; keep it public
         if not interaction.user.guild_permissions.administrator and not is_owner(interaction.user):
             await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
             return
