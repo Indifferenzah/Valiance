@@ -293,7 +293,6 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Check if message is just the bot mention
     mention_pattern = f'<@!?{bot.user.id}>'
     if re.match(f'^{mention_pattern}$', message.content.strip()):
         await message.channel.send("Digita `!help` per vedere una lista di comandi.")
