@@ -599,7 +599,6 @@ async def cwend(ctx):
     await cleanup_session(guild_id)
     await ctx.send('✅ Partita terminata e canali eliminati!')
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='cwend', description='Termina la partita custom e elimina i canali (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_cwend(interaction: discord.Interaction):
@@ -625,7 +624,6 @@ async def setruleset(ctx):
     await ctx.send('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.')
 
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='setruleset', description='Imposta il ruleset (solo per admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_setruleset(interaction: discord.Interaction):
@@ -697,7 +695,6 @@ async def testwelcome(ctx):
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
 
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='testwelcome', description='Testa il messaggio di benvenuto (solo per admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_testwelcome(interaction: discord.Interaction):
@@ -791,7 +788,6 @@ async def testboost(ctx):
         await ctx.send(f'❌ Errore nell\'invio del messaggio di test: {e}')
 
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='testboost', description='Testa il messaggio di boost (solo per admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_testboost(interaction: discord.Interaction):
@@ -970,7 +966,6 @@ async def startct(ctx):
         print(f'Errore nella creazione dei counter: {e}')
 
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='startct', description='Avvia i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_startct(interaction: discord.Interaction):
@@ -1024,7 +1019,6 @@ async def stopct(ctx):
         print(f'Errore nell\'eliminazione dei counter: {e}')
 
 
-@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name='stopct', description='Ferma e elimina i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_stopct(interaction: discord.Interaction):
@@ -1123,7 +1117,6 @@ async def purge_messages(ctx, limit: int):
     await ctx.send(f"✅ Ho eliminato {len(deleted)} messaggi.", delete_after=3)
 
 
-@app_commands.default_permissions(manage_messages=True)
 @bot.tree.command(name='purge', description='Elimina un numero di messaggi (1-250)')
 @app_commands.describe(limit='Numero di messaggi da eliminare (1-250)')
 async def slash_purge(interaction: discord.Interaction, limit: int):

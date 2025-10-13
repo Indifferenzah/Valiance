@@ -105,7 +105,6 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nel kickare: {e}')
 
-    @app_commands.default_permissions(kick_members=True)
     @app_commands.command(name='kick', description='Kicka un membro dal server')
     @app_commands.describe(member='Il membro da kickare', reason='La ragione del kick')
     async def slash_kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = "Nessuna ragione specificata"):
@@ -186,7 +185,6 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nel mutare: {e}')
 
-    @app_commands.default_permissions(moderate_members=True)
     @app_commands.command(name='mute', description='Muta un membro per una durata specificata (es. 1h, 30m, 1d)')
     @app_commands.describe(member='Il membro da mutare', duration='Durata (es. 1h, 30m, 1d)', reason='Ragione del mute')
     async def slash_mute(self, interaction: discord.Interaction, member: discord.Member, duration: str = None, *, reason: str = "Nessuna ragione specificata"):
@@ -245,7 +243,6 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nello smutare: {e}')
 
-    @app_commands.default_permissions(moderate_members=True)
     @app_commands.command(name='unmute', description='Smetti il timeout di un membro')
     @app_commands.describe(member='Il membro da smutare', reason='La ragione dello smut')
     async def slash_unmute(self, interaction: discord.Interaction, member: discord.Member, reason: str = "Nessuna ragione specificata"):
@@ -303,7 +300,6 @@ class ModerationCog(commands.Cog):
             except Exception as e:
                 await ctx.send(f'❌ Errore nel mutare per 3 warn: {e}')
 
-    @app_commands.default_permissions(manage_messages=True)
     @app_commands.command(name='warn', description='Aggiungi un warn a un membro')
     @app_commands.describe(member='Il membro da warning', reason='La ragione del warn')
     async def slash_warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = "Nessuna ragione specificata"):
@@ -363,7 +359,6 @@ class ModerationCog(commands.Cog):
         self.save_warns()
         await ctx.send(f'✅ Warn ID {warn_id} rimosso!')
 
-    @app_commands.default_permissions(manage_messages=True)
     @app_commands.command(name='unwarn', description='Rimuovi un warn tramite ID')
     @app_commands.describe(warn_id='L\'ID del warn da rimuovere')
     async def slash_unwarn(self, interaction: discord.Interaction, warn_id: int):
@@ -400,7 +395,6 @@ class ModerationCog(commands.Cog):
             embed.add_field(name=f'ID {w["id"]}', value=f'**Ragione:** {w["reason"]}\n**Moderatore:** <@{w["moderator"]}>\n**Data:** {w["timestamp"][:10]}', inline=False)
         await ctx.send(embed=embed)
 
-    @app_commands.default_permissions(manage_messages=True)
     @app_commands.command(name='listwarns', description='Mostra i warn di un membro')
     @app_commands.describe(member='Il membro di cui mostrare i warn (opzionale)')
     async def slash_listwarns(self, interaction: discord.Interaction, member: discord.Member = None):
@@ -439,7 +433,6 @@ class ModerationCog(commands.Cog):
         self.save_warns()
         await ctx.send(f'✅ Tutti i warn di {member.mention} sono stati rimossi! ({len(user_warns)} warn)')
 
-    @app_commands.default_permissions(manage_messages=True)
     @app_commands.command(name='clearwarns', description='Rimuove tutti i warn di un membro')
     @app_commands.describe(member='Il membro di cui rimuovere i warn')
     async def slash_clearwarns(self, interaction: discord.Interaction, member: discord.Member):
@@ -478,7 +471,6 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await ctx.send(f'❌ Errore nell\'unbannare: {e}')
 
-    @app_commands.default_permissions(ban_members=True)
     @app_commands.command(name='unban', description='Sbanna un utente dal server')
     @app_commands.describe(user_id='L\'ID dell\'utente da sbannare', reason='La ragione dello sban')
     async def slash_unban(self, interaction: discord.Interaction, user_id: str, reason: str = "Nessuna ragione specificata"):
