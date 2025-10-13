@@ -49,10 +49,10 @@ class TicketCog(commands.Cog):
                 cw_role_id = 1350073967716732971
                 try:
                     author_roles = getattr(message.author, 'roles', []) or []
-                    if any(getattr(r, 'id', None) == cw_role_id for r in author_roles):
-                        prefix = '[STAFF CW] '
-                    elif staff_role_id and any(role.id == int(staff_role_id) for role in author_roles):
+                    if staff_role_id and any(role.id == int(staff_role_id) for role in author_roles):
                         prefix = '[STAFF] '
+                    elif any(getattr(r, 'id', None) == cw_role_id for r in author_roles):
+                        prefix = '[STAFF CW] '
                 except Exception:
                     if staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
                         prefix = '[STAFF] '
@@ -243,10 +243,12 @@ class TicketCog(commands.Cog):
         tpl = self.ticket_messages.get('add')
         if tpl:
             e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', ctx.author.mention), color=tpl.get('color', 0x00ff00))
+            # thumbnail from template
             if tpl.get('thumbnail'):
                 e.set_thumbnail(url=tpl.get('thumbnail'))
+            # author header (who performed the action)
             try:
-                e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+                e.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
             except Exception:
                 pass
             if tpl.get('footer'):
@@ -295,7 +297,7 @@ class TicketCog(commands.Cog):
             if tpl.get('thumbnail'):
                 e.set_thumbnail(url=tpl.get('thumbnail'))
             try:
-                e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+                e.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
             except Exception:
                 pass
             if tpl.get('footer'):
@@ -342,7 +344,7 @@ class TicketCog(commands.Cog):
                 if tpl.get('thumbnail'):
                     e.set_thumbnail(url=tpl.get('thumbnail'))
                 try:
-                    e.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+                    e.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
                 except Exception:
                     pass
                 if tpl.get('footer'):
