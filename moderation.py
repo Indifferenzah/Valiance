@@ -535,7 +535,6 @@ class ModerationCog(commands.Cog):
             return
 
         try:
-            # Get audit log for timeout details
             async for entry in interaction.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=20):
                 if entry.target.id == member.id and entry.after.timed_out_until is not None:
                     moderator = entry.user
@@ -544,7 +543,6 @@ class ModerationCog(commands.Cog):
                     muted_until = entry.after.timed_out_until.strftime("%Y-%m-%d %H:%M:%S") if entry.after.timed_out_until else "Sconosciuto"
                     await interaction.response.send_message(f'{member.mention} è mutato da {moderator} ({staffer}) fino al {muted_until}. Ragione: {reason}', ephemeral=True)
                     return
-            # If no audit log, just say muted
             await interaction.response.send_message(f'{member.mention} è mutato.', ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nel controllare il mute: {e}', ephemeral=True)
