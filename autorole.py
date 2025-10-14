@@ -21,81 +21,37 @@ class AutoRoleCog(commands.Cog):
             json.dump(self.autorole_config, f, indent=2, ensure_ascii=False)
 
     @app_commands.command(name='createreact', description='Crea un messaggio di reazione per assegnare ruoli')
-    async def slash_createreact(self, interaction: discord.Interaction):
+    @app_commands.describe(message_id='ID del messaggio esistente', emoji='Emoji da usare per la reazione', role='Ruolo da assegnare')
+    async def slash_createreact(self, interaction: discord.Interaction, message_id: str, emoji: str, role: discord.Role):
         if not interaction.user.guild_permissions.administrator and not is_owner(interaction.user):
             await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
             return
 
-        await interaction.response.send_message('📝 Invia il link del messaggio esistente su cui vuoi aggiungere la reazione per il ruolo.', ephemeral=True)
-
-        def check_link(m):
-            return m.author == interaction.user and m.channel == interaction.channel and 'discord.com/channels/' in m.content
+        try:
+            message_id = int(message_id)
+        except ValueError:
+            await interaction.response.send_message('❌ ID messaggio non valido!', ephemeral=True)
+            return
 
         try:
-            link_msg = await self.bot.wait_for('message', check=check_link, timeout=60.0)
-            link = link_msg.content.strip()
+            message = await interaction.channel.fetch_message(message_id)
+        except discord.NotFound:
+            await interaction.response.send_message('❌ Messaggio non trovato in questo canale!', ephemeral=True)
+            return
 
-            parts = link.split('/')
-            if len(parts) < 7:
-                await interaction.followup.send('❌ Link non valido! Assicurati che sia un link completo a un messaggio.', ephemeral=True)
-                return
+        try:
+            await message.add_reaction(emoji)
+        except Exception:
+            await interaction.response.send_message('❌ Emoji non valida!', ephemeral=True)
+            return
 
-            guild_id = int(parts[4])
-            channel_id = int(parts[5])
-            message_id = int(parts[6])
+        key = f"{interaction.guild.id}_{interaction.channel.id}_{message_id}"
+        if key not in self.autorole_config:
+            self.autorole_config[key] = {}
+        self.autorole_config[key][emoji] = role.id
+        self.save_config()
 
-            if guild_id != interaction.guild.id:
-                await interaction.followup.send('❌ Il messaggio deve essere in questo server!', ephemeral=True)
-                return
-
-            channel = interaction.guild.get_channel(channel_id)
-            if not channel:
-                await interaction.followup.send('❌ Canale non trovato!', ephemeral=True)
-                return
-
-            try:
-                message = await channel.fetch_message(message_id)
-            except discord.NotFound:
-                await interaction.followup.send('❌ Messaggio non trovato!', ephemeral=True)
-                return
-
-            await interaction.followup.send('✅ Messaggio trovato! Ora invia l\'emoji da usare per la reazione.', ephemeral=True)
-
-            def check_emoji(m):
-                return m.author == interaction.user and m.channel == interaction.channel
-
-            emoji_msg = await self.bot.wait_for('message', check=check_emoji, timeout=60.0)
-            emoji = emoji_msg.content.strip()
-
-            try:
-                await interaction.message.add_reaction(emoji)
-                await interaction.message.remove_reaction(emoji, self.bot.user)
-            except Exception:
-                await interaction.followup.send('❌ Emoji non valida!', ephemeral=True)
-                return
-
-            await interaction.followup.send('✅ Emoji valida! Ora pinga il ruolo da assegnare quando si reagisce con questa emoji.', ephemeral=True)
-
-            def check_role(m):
-                return m.author == interaction.user and m.channel == interaction.channel and len(m.role_mentions) > 0
-
-            role_msg = await self.bot.wait_for('message', check=check_role, timeout=60.0)
-            role = role_msg.role_mentions[0]
-
-            key = f"{guild_id}_{channel_id}_{message_id}"
-            if key not in self.autorole_config:
-                self.autorole_config[key] = {}
-            self.autorole_config[key][emoji] = role.id
-            self.save_config()
-
-            try:
-                await message.add_reaction(emoji)
-                await interaction.followup.send(f'✅ Configurazione completata! Reagisci con {emoji} al messaggio per ottenere il ruolo {role.mention}.', ephemeral=False)
-            except Exception as e:
-                await interaction.followup.send(f'❌ Errore nell\'aggiungere la reazione: {e}', ephemeral=True)
-
-        except TimeoutError:
-            await interaction.followup.send('❌ Timeout! Riprova il comando.', ephemeral=True)
+        await interaction.response.send_message(f'✅ Configurazione completata! Reagisci con {emoji} al messaggio per ottenere il ruolo {role.mention}.', ephemeral=True)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):

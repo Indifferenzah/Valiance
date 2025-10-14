@@ -612,18 +612,6 @@ async def slash_ruleset(interaction: discord.Interaction):
 
     await interaction.response.send_message(config['ruleset_message'], ephemeral=False)
 
-@bot.tree.command(name='testwelcome', description='Testa il messaggio di benvenuto (solo per admin)')
-@owner_or_has_permissions(administrator=True)
-async def slash_testwelcome(interaction: discord.Interaction):
-    ctx = await bot.get_context(await interaction.original_response() if interaction.response.is_done() else interaction)
-    if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
-        await interaction.response.send_message('❌ Canale di benvenuto non configurato in config.json!', ephemeral=False)
-        return
-    try:
-        pass
-    except Exception as e:
-        await interaction.followup.send(f'❌ Errore nel test del messaggio di benvenuto: {e}', ephemeral=True)
-
 async def update_counters(guild):
     if guild.id not in counter_channels:
         return
@@ -759,7 +747,46 @@ async def slash_startct(interaction: discord.Interaction):
 @bot.tree.command(name='stopct', description='Ferma e elimina i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_stopct(interaction: discord.Interaction):
-    await interaction.response.send_message('✅ stopct eseguito (usa il comando prefisso per comportamento completo).', ephemeral=False)
+    global counter_task
+
+    guild = interaction.guild
+
+    if guild.id not in counter_channels:
+        await interaction.response.send_message('❌ I counter non sono attivi!', ephemeral=True)
+        return
+
+    try:
+        await interaction.response.send_message('🔄 Fermando e eliminando canali counter...', ephemeral=False)
+
+        # Delete channels
+        for channel_type, channel in counter_channels[guild.id].items():
+            try:
+                await channel.delete()
+                print(f'Canale counter {channel_type} eliminato per guild {guild.name}')
+            except Exception as e:
+                print(f'Errore nell\'eliminazione del canale {channel_type}: {e}')
+
+        # Remove from memory
+        del counter_channels[guild.id]
+
+        # Remove from config
+        if 'active_counters' in config and str(guild.id) in config['active_counters']:
+            del config['active_counters'][str(guild.id)]
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+
+        # Stop the task if no more counters
+        if not counter_channels and counter_task and not counter_task.done():
+            counter_task.cancel()
+            counter_task = None
+            print('Loop di aggiornamento counter fermato')
+
+        await interaction.followup.send('✅ Counter fermati e canali eliminati con successo!', ephemeral=False)
+        print(f'Counter fermati nel server {guild.name}')
+
+    except Exception as e:
+        await interaction.followup.send(f'❌ Errore nel fermare i counter: {e}', ephemeral=True)
+        print(f'Errore nel fermare i counter: {e}')
 
 class DeleteConfirmView(discord.ui.View):
     def __init__(self, ctx):
@@ -836,8 +863,8 @@ async def slash_purge(interaction: discord.Interaction, limit: int):
             await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=False)
-        deleted = await interaction.channel.purge(limit=limit)
+        await interaction.response.defer(ephemeral=True)
+        deleted = await interaction.channel.purge(limit=limit, before=interaction.created_at)
         await interaction.followup.send(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=True)
     except discord.Forbidden:
         try:
@@ -864,7 +891,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🛡️ Moderazione',
-        value='`/ban` - Banna un membro\n`/kick` - Kicka un membro\n`/mute` - Muta un membro\n`/unmute` - Smuta un membro\n`/warn` - Aggiungi un warn\n`/unwarn` - Rimuovi un warn\n`/listwarns` - Mostra i warn\n`/clearwarns` - Rimuovi tutti i warn',
+        value='`/ban` - Banna un membro\n`/kick` - Kicka un membro\n`/mute` - Muta un membro\n`/unmute` - Smuta un membro\n`/warn` - Aggiungi un warn\n`/unwarn` - Rimuovi un warn\n`/listwarns` - Mostra i warn\n`/clearwarns` - Rimuovi tutti i warn\n`/listban` - Mostra i ban\n`/checkban` - Controlla se un utente è bannato\n`/checkmute` - Controlla se un utente è mutato',
         inline=False
     )
 
@@ -876,7 +903,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🔧 Utilità',
-        value='`/ping` - Mostra latenza bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/testwelcome` - Test messaggio benvenuto\n`/testboost` - Test messaggio boost\n`/startct` - Avvia counter\n`/stopct` - Ferma counter',
+        value='`/ping` - Mostra latenza bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter',
         inline=False
     )
 
@@ -923,20 +950,22 @@ if __name__ == '__main__':
         import importlib
         import asyncio
 
-        modules_to_setup = ['ticket', 'moderation', 'autorole', 'log']
-        for modname in modules_to_setup:
-            try:
-                mod = importlib.import_module(modname)
-                setup = getattr(mod, 'setup', None)
-                if setup:
-                    if asyncio.iscoroutinefunction(setup):
-                        asyncio.get_event_loop().run_until_complete(setup(bot))
-                    else:
-                        setup(bot)
-                print(f'Extension {modname} setup executed')
-            except Exception as e:
-                print(f'Non sono riuscito a caricare {modname}: {e}')
+        async def setup_modules():
+            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log']
+            for modname in modules_to_setup:
+                try:
+                    mod = importlib.import_module(modname)
+                    setup = getattr(mod, 'setup', None)
+                    if setup:
+                        if asyncio.iscoroutinefunction(setup):
+                            await setup(bot)
+                        else:
+                            setup(bot)
+                    print(f'Extension {modname} setup executed')
+                except Exception as e:
+                    print(f'Non sono riuscito a caricare {modname}: {e}')
 
+        asyncio.run(setup_modules())
         bot.run(os.getenv('TOKEN'))
     except Exception as e:
         print(f'Errore nell\'avvio del bot: {e}')

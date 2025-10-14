@@ -180,7 +180,7 @@ class ModerationCog(commands.Cog):
 
         try:
             await member.timeout(delta, reason=reason)
-            await ctx.send(f'✅ {member.mention} è stato mutato per {duration}. Ragione: {reason}')
+            await ctx.send(f'✅ {member.mention} è stato mutato per {duration}. Ragione: {reason}', ephemeral=True)
             await self.send_dm(member, "mute", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
         except Exception as e:
             await ctx.send(f'❌ Errore nel mutare: {e}')
@@ -221,7 +221,7 @@ class ModerationCog(commands.Cog):
 
         try:
             await member.timeout(delta, reason=reason)
-            await interaction.response.send_message(f'✅ {member.mention} è stato mutato per {duration}. Ragione: {reason}', ephemeral=False)
+            await interaction.response.send_message(f'✅ {member.mention} è stato mutato per {duration}. Ragione: {reason}', ephemeral=True)
             await self.send_dm(member, "mute", reason=reason, staffer=str(interaction.user), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nel mutare: {e}', ephemeral=True)
@@ -509,14 +509,13 @@ class ModerationCog(commands.Cog):
             bans = [ban async for ban in interaction.guild.bans()]
             for ban in bans:
                 if ban.user.id == user_id:
-                    # Get audit log for details
                     async for entry in interaction.guild.audit_logs(action=discord.AuditLogAction.ban, limit=20):
                         if entry.target.id == user_id:
                             moderator = entry.user
+                            staffer = interaction.user
                             reason = entry.reason or "Nessuna ragione"
-                            await interaction.response.send_message(f'{ban.user} è bannato da {moderator}. Ragione: {reason}', ephemeral=True)
+                            await interaction.response.send_message(f'{ban.user} è bannato da {moderator} ({staffer}). Ragione: {reason}', ephemeral=True)
                             return
-                    # If no audit log found, just say banned
                     await interaction.response.send_message(f'{ban.user} è bannato.', ephemeral=True)
                     return
             await interaction.response.send_message('Utente non bannato.', ephemeral=True)
@@ -540,9 +539,10 @@ class ModerationCog(commands.Cog):
             async for entry in interaction.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=20):
                 if entry.target.id == member.id and entry.after.timed_out_until is not None:
                     moderator = entry.user
+                    staffer = interaction.user
                     reason = entry.reason or "Nessuna ragione"
                     muted_until = entry.after.timed_out_until.strftime("%Y-%m-%d %H:%M:%S") if entry.after.timed_out_until else "Sconosciuto"
-                    await interaction.response.send_message(f'{member.mention} è mutato da {moderator} fino al {muted_until}. Ragione: {reason}', ephemeral=True)
+                    await interaction.response.send_message(f'{member.mention} è mutato da {moderator} ({staffer}) fino al {muted_until}. Ragione: {reason}', ephemeral=True)
                     return
             # If no audit log, just say muted
             await interaction.response.send_message(f'{member.mention} è mutato.', ephemeral=True)
@@ -562,14 +562,43 @@ class ModerationCog(commands.Cog):
                 await interaction.response.send_message('Nessun utente bannato.', ephemeral=True)
                 return
 
-            embed = discord.Embed(title='Lista Ban', color=0xff0000)
-            for i, ban in enumerate(bans):
-                if i >= 25:  # Limit to 25 fields per embed
-                    break
-                embed.add_field(name=f'{ban.user} ({ban.user.id})', value=f'**Reason:** {ban.reason or "Nessuna"}', inline=False)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            view = ListBanView(bans)
+            embed = view.create_embed()
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nel recuperare la lista ban: {e}', ephemeral=True)
+
+class ListBanView(discord.ui.View):
+    def __init__(self, bans, current_page=0):
+        super().__init__(timeout=300)
+        self.bans = bans
+        self.current_page = current_page
+        self.total_pages = (len(bans) - 1) // 25 + 1
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.clear_items()
+        if self.current_page > 0:
+            self.add_item(discord.ui.Button(label="Previous", style=discord.ButtonStyle.primary, custom_id="prev"))
+        if self.current_page < self.total_pages - 1:
+            self.add_item(discord.ui.Button(label="Next", style=discord.ButtonStyle.primary, custom_id="next"))
+
+    def create_embed(self):
+        embed = discord.Embed(title=f'Lista Ban (Page {self.current_page + 1}/{self.total_pages})', color=0xff0000)
+        start = self.current_page * 25
+        end = start + 25
+        for ban in self.bans[start:end]:
+            embed.add_field(name=f'{ban.user} ({ban.user.id})', value=f'**Ragione:** {ban.reason or "//"}', inline=False)
+        return embed
+
+    async def interaction_check(self, interaction):
+        if interaction.data['custom_id'] == 'prev':
+            self.current_page -= 1
+        elif interaction.data['custom_id'] == 'next':
+            self.current_page += 1
+        self.update_buttons()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
 
     @commands.Cog.listener()
     async def on_message(self, message):

@@ -278,10 +278,10 @@ class TicketCog(commands.Cog):
 
         if member.id in self.blacklist:
             self.blacklist.remove(member.id)
-            await interaction.response.send_message(f'✅ {member.mention} è stato rimosso dalla blacklist!', ephemeral=False)
+            await interaction.response.send_message(f'✅ {member.mention} è stato rimosso dalla blacklist!', ephemeral=True)
         else:
             self.blacklist.append(member.id)
-            await interaction.response.send_message(f'✅ {member.mention} è stato aggiunto alla blacklist!', ephemeral=False)
+            await interaction.response.send_message(f'✅ {member.mention} è stato aggiunto alla blacklist!', ephemeral=True)
 
         with open('blacklist.json', 'w') as f:
             json.dump(self.blacklist, f)
