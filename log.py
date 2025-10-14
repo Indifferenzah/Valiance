@@ -111,12 +111,10 @@ class LogCog(commands.Cog):
             mention = member.mention
             roles = self._get_roles_str(member)
 
-            # compute time in server
             time_in_server = 'Unknown'
             try:
                 if member.joined_at:
                     joined = member.joined_at
-                    # normalize to aware UTC datetimes
                     if joined.tzinfo is None:
                         joined = joined.replace(tzinfo=timezone.utc)
                     delta = left_dt - joined
@@ -142,7 +140,6 @@ class LogCog(commands.Cog):
                 footer = footer.replace('{id}', str(member.id)).replace('{total_members}', str(member.guild.member_count))
                 embed.set_footer(text=footer)
 
-            # add roles field and extra info
             embed.add_field(name='Ruoli', value=roles, inline=False)
             embed.add_field(name='ID Utente', value=str(member.id), inline=True)
             embed.add_field(name='Data uscita', value=left_at, inline=True)

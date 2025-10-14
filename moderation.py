@@ -491,6 +491,86 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nell\'unbannare: {e}', ephemeral=True)
 
+    @app_commands.command(name='checkban', description='Controlla se un utente è bannato e i dettagli')
+    @app_commands.describe(user_id='ID dell\'utente da controllare')
+    async def slash_checkban(self, interaction: discord.Interaction, user_id: str):
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
+        if interaction.user.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        if not user_id.isdigit():
+            await interaction.response.send_message('❌ Inserisci un ID utente valido.', ephemeral=True)
+            return
+
+        user_id = int(user_id)
+
+        try:
+            bans = [ban async for ban in interaction.guild.bans()]
+            for ban in bans:
+                if ban.user.id == user_id:
+                    # Get audit log for details
+                    async for entry in interaction.guild.audit_logs(action=discord.AuditLogAction.ban, limit=20):
+                        if entry.target.id == user_id:
+                            moderator = entry.user
+                            reason = entry.reason or "Nessuna ragione"
+                            await interaction.response.send_message(f'{ban.user} è bannato da {moderator}. Ragione: {reason}', ephemeral=True)
+                            return
+                    # If no audit log found, just say banned
+                    await interaction.response.send_message(f'{ban.user} è bannato.', ephemeral=True)
+                    return
+            await interaction.response.send_message('Utente non bannato.', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel controllare il ban: {e}', ephemeral=True)
+
+    @app_commands.command(name='checkmute', description='Controlla se un membro è mutato e i dettagli')
+    @app_commands.describe(member='Il membro da controllare')
+    async def slash_checkmute(self, interaction: discord.Interaction, member: discord.Member):
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
+        if interaction.user.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        if not member.is_timed_out():
+            await interaction.response.send_message(f'{member.mention} non è mutato.', ephemeral=True)
+            return
+
+        try:
+            # Get audit log for timeout details
+            async for entry in interaction.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=20):
+                if entry.target.id == member.id and entry.after.timed_out_until is not None:
+                    moderator = entry.user
+                    reason = entry.reason or "Nessuna ragione"
+                    muted_until = entry.after.timed_out_until.strftime("%Y-%m-%d %H:%M:%S") if entry.after.timed_out_until else "Sconosciuto"
+                    await interaction.response.send_message(f'{member.mention} è mutato da {moderator} fino al {muted_until}. Ragione: {reason}', ephemeral=True)
+                    return
+            # If no audit log, just say muted
+            await interaction.response.send_message(f'{member.mention} è mutato.', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel controllare il mute: {e}', ephemeral=True)
+
+    @app_commands.command(name='listban', description='Lista tutti gli utenti bannati')
+    async def slash_listban(self, interaction: discord.Interaction):
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
+        if interaction.user.id != 1123622103917285418 and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        try:
+            bans = [ban async for ban in interaction.guild.bans()]
+            if not bans:
+                await interaction.response.send_message('Nessun utente bannato.', ephemeral=True)
+                return
+
+            embed = discord.Embed(title='Lista Ban', color=0xff0000)
+            for i, ban in enumerate(bans):
+                if i >= 25:  # Limit to 25 fields per embed
+                    break
+                embed.add_field(name=f'{ban.user} ({ban.user.id})', value=f'**Reason:** {ban.reason or "Nessuna"}', inline=False)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel recuperare la lista ban: {e}', ephemeral=True)
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:

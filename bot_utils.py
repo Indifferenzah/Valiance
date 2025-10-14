@@ -4,10 +4,6 @@ from discord import app_commands
 OWNER_ID = 1123622103917285418
 
 def is_owner(user_or_id):
-    """Return True if the object or id is the configured owner.
-
-    Accepts either an int user id or an object with .id attribute (Member/User).
-    """
     try:
         if isinstance(user_or_id, int):
             return user_or_id == OWNER_ID
@@ -16,10 +12,6 @@ def is_owner(user_or_id):
         return False
 
 def owner_or_has_permissions(**perms):
-    """Return an app_commands.check that allows OWNER_ID to bypass permission checks.
-
-    Usage: @owner_or_has_permissions(administrator=True)
-    """
     def _predicate(interaction: discord.Interaction):
         try:
             if is_owner(interaction.user):
