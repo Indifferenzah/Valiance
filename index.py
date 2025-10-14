@@ -758,7 +758,6 @@ async def slash_stopct(interaction: discord.Interaction):
     try:
         await interaction.response.send_message('🔄 Fermando e eliminando canali counter...', ephemeral=False)
 
-        # Delete channels
         for channel_type, channel in counter_channels[guild.id].items():
             try:
                 await channel.delete()
@@ -766,16 +765,13 @@ async def slash_stopct(interaction: discord.Interaction):
             except Exception as e:
                 print(f'Errore nell\'eliminazione del canale {channel_type}: {e}')
 
-        # Remove from memory
         del counter_channels[guild.id]
 
-        # Remove from config
         if 'active_counters' in config and str(guild.id) in config['active_counters']:
             del config['active_counters'][str(guild.id)]
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
 
-        # Stop the task if no more counters
         if not counter_channels and counter_task and not counter_task.done():
             counter_task.cancel()
             counter_task = None
