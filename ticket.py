@@ -27,6 +27,13 @@ class TicketCog(commands.Cog):
             with open('ticket.json', 'r') as f:
                 loaded = json.load(f)
                 self.ticket_owners = {int(k): v for k, v in loaded.items()}
+        self.closed_tickets = {}
+        if os.path.exists('closed_tickets.json'):
+            with open('closed_tickets.json', 'r') as f:
+                try:
+                    self.closed_tickets = json.load(f)
+                except Exception:
+                    self.closed_tickets = {}
         self.blacklist = []
         if os.path.exists('blacklist.json'):
             with open('blacklist.json', 'r') as f:
@@ -151,85 +158,7 @@ class TicketCog(commands.Cog):
         view = ConfirmCloseView(channel.id, self)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-    @app_commands.command(name='transcript', description='Genera e invia il transcript del canale ticket')
-    async def slash_transcript(self, interaction: discord.Interaction):
-        channel = interaction.channel
-        if channel.id not in self.ticket_owners:
-            await interaction.response.send_message('❌ Questo comando può essere usato solo nei canali ticket!', ephemeral=True)
-            return
 
-        staff_role_id = self.config.get('ticket_staff_role_id')
-        if staff_role_id and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
-            await interaction.response.send_message('❌ Non hai i permessi per creare transcript!', ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        messages = []
-        staff_role_id = self.config.get('ticket_staff_role_id')
-        async for message in channel.history(limit=None, oldest_first=True):
-            messages.append(self._format_message_for_transcript(message, staff_role_id))
-
-        filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(messages))
-
-        embed_data = self.config.get('ticket_transcript_embed', {})
-        embed = discord.Embed(
-            title=embed_data.get('title', 'Transcript del Ticket'),
-            description=embed_data.get('description', 'Ecco il transcript del ticket.'),
-            color=embed_data.get('color', 0x00ff00)
-        )
-        if embed_data.get('thumbnail'):
-            embed.set_thumbnail(url=embed_data['thumbnail'])
-        if embed_data.get('footer'):
-            embed.set_footer(text=embed_data['footer'])
-
-        ticket_info = self.ticket_owners.get(channel.id, {})
-        if isinstance(ticket_info, int):
-            owner_id = ticket_info
-            button_id = ''
-        else:
-            owner_id = ticket_info.get('owner')
-            button_id = ticket_info.get('button', '')
-        opener = self.bot.get_user(owner_id).mention if owner_id and self.bot.get_user(owner_id) else 'Unknown'
-        staffer = interaction.user.mention
-        name = channel.name
-
-        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
-        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
-        if embed.footer:
-            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
-
-        transcript_channel_id = self.config.get('ticket_transcript_channel_id')
-        if transcript_channel_id:
-            channel_out = self.bot.get_channel(int(transcript_channel_id))
-            if channel_out:
-                await channel_out.send(embed=embed, file=discord.File(filename))
-                try:
-                    await interaction.followup.send('✅ Transcript inviato!', ephemeral=True)
-                except Exception:
-                    pass
-            else:
-                try:
-                    await interaction.followup.send('❌ Canale transcript non trovato!', ephemeral=True)
-                except Exception:
-                    pass
-        else:
-            try:
-                await interaction.followup.send('❌ Canale transcript non configurato!', ephemeral=True)
-            except Exception:
-                pass
-
-        if owner_id:
-            owner = channel.guild.get_member(owner_id)
-            if owner:
-                try:
-                    await owner.send(embed=embed, file=discord.File(filename))
-                except discord.Forbidden:
-                    pass
-
-        os.remove(filename)
 
     @app_commands.command(name='rename', description='Rinomina il canale ticket')
     @app_commands.describe(new_name='Il nuovo nome del canale (max 100 caratteri)')
@@ -373,6 +302,69 @@ class TicketCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
 
+    @app_commands.command(name='list', description='Mostra i ticket aperti e chiusi di un utente')
+    @app_commands.describe(user='Utente di cui mostrare i ticket')
+    async def slash_list_tickets(self, interaction: discord.Interaction, user: discord.Member):
+        staff_role_id = self.config.get('ticket_staff_role_id')
+        if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        open_tickets = []
+        closed_tickets = []
+
+        for channel_id, info in self.ticket_owners.items():
+            owner_id = info.get('owner') if isinstance(info, dict) else info
+            if owner_id == user.id:
+                channel = self.bot.get_channel(channel_id)
+                if channel:
+                    open_tickets.append(f"#{channel.name}")
+
+        for ticket_num, info in self.closed_tickets.items():
+            if info.get('owner') == user.id:
+                closed_tickets.append(f"#{ticket_num} - {info.get('channel_name', 'Unknown')}")
+
+        embed = discord.Embed(
+            title=f'Ticket di {user.name}',
+            color=0x00ff00
+        )
+
+        if open_tickets:
+            embed.add_field(name='Ticket Aperti', value='\n'.join(open_tickets), inline=False)
+        else:
+            embed.add_field(name='Ticket Aperti', value='Nessuno', inline=False)
+
+        if closed_tickets:
+            embed.add_field(name='Ticket Chiusi', value='\n'.join(closed_tickets), inline=False)
+        else:
+            embed.add_field(name='Ticket Chiusi', value='Nessuno', inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name='transcript', description='Invia il transcript di un ticket chiuso')
+    @app_commands.describe(number='Numero del ticket')
+    async def slash_transcript(self, interaction: discord.Interaction, number: int):
+        ticket_str = str(number)
+        if ticket_str not in self.closed_tickets:
+            await interaction.response.send_message('❌ Ticket non trovato!', ephemeral=True)
+            return
+
+        ticket_info = self.closed_tickets[ticket_str]
+        owner_id = ticket_info.get('owner')
+        if owner_id != interaction.user.id:
+            staff_role_id = self.config.get('ticket_staff_role_id')
+            if not staff_role_id or not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+                await interaction.response.send_message('❌ Non hai i permessi per vedere questo transcript!', ephemeral=True)
+                return
+
+        filename = ticket_info.get('transcript_file')
+        if not os.path.exists(filename):
+            await interaction.response.send_message('❌ Transcript non trovato!', ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+
 
 
 class TicketView(discord.ui.View):
@@ -492,9 +484,33 @@ class ConfirmCloseView(discord.ui.View):
         async for message in channel.history(limit=None, oldest_first=True):
             messages.append(self.cog._format_message_for_transcript(message, staff_role_id))
 
-        filename = f'transcript-{channel.name}-{datetime.now().strftime("%Y%m%d%H%M%S")}.txt'
+        ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
+        if isinstance(ticket_info, int):
+            owner_id = ticket_info
+            button_id = ''
+        else:
+            owner_id = ticket_info.get('owner')
+            button_id = ticket_info.get('button', '')
+
+        ticket_number = self.cog.config.get('ticket_counter', 0) + 1
+        self.cog.config['ticket_counter'] = ticket_number
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(self.cog.config, f, indent=2, ensure_ascii=False)
+
+        filename = f'transcripts/transcript-{ticket_number}.txt'
+        os.makedirs('transcripts', exist_ok=True)
         with open(filename, 'w', encoding='utf-8') as f:
             f.write('\n'.join(messages))
+
+        self.cog.closed_tickets[str(ticket_number)] = {
+            'owner': owner_id,
+            'transcript_file': filename,
+            'closed_at': datetime.now().isoformat(),
+            'button': button_id,
+            'channel_name': channel.name
+        }
+        with open('closed_tickets.json', 'w') as f:
+            json.dump(self.cog.closed_tickets, f)
 
         embed_data = self.cog.config.get('ticket_transcript_embed', {})
         embed = discord.Embed(
@@ -507,13 +523,6 @@ class ConfirmCloseView(discord.ui.View):
         if embed_data.get('footer'):
             embed.set_footer(text=embed_data['footer'])
 
-        ticket_info = self.cog.ticket_owners.get(self.channel_id, {})
-        if isinstance(ticket_info, int):
-            owner_id = ticket_info
-            button_id = ''
-        else:
-            owner_id = ticket_info.get('owner')
-            button_id = ticket_info.get('button', '')
         opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
         staffer = interaction.user.mention
         name = channel.name
@@ -538,8 +547,6 @@ class ConfirmCloseView(discord.ui.View):
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
                     pass
-
-        os.remove(filename)
 
         await channel.delete()
 
