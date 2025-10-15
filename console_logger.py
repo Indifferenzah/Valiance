@@ -17,6 +17,8 @@ class ColoredFormatter(logging.Formatter):
             record.levelname = f"{Fore.RED}[ERROR]{Style.RESET_ALL}"
         elif record.levelno == logging.DEBUG:
             record.levelname = f"{Fore.BLUE}[DEBUG]{Style.RESET_ALL}"
+        elif record.levelno == logging.CRITICAL:
+            record.levelname = f"{Fore.RED}[FATAL]{Style.RESET_ALL}"
         else:
             record.levelname = f"[{record.levelname}]"
 

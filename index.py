@@ -1093,4 +1093,4 @@ if __name__ == '__main__':
         asyncio.run(setup_modules())
         bot.run(os.getenv('TOKEN'))
     except Exception as e:
-        logger.error(f'Errore nell\'avvio del bot: {e}')
+        logger.critical(f'Errore fatale nell\'avvio del bot: {e}')
