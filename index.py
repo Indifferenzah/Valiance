@@ -887,7 +887,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🛡️ Moderazione',
-        value='`/ban` - Banna un membro\n`/kick` - Kicka un membro\n`/mute` - Muta un membro\n`/unmute` - Smuta un membro\n`/warn` - Aggiungi un warn\n`/unwarn` - Rimuovi un warn\n`/listwarns` - Mostra i warn\n`/clearwarns` - Rimuovi tutti i warn\n`/listban` - Mostra i ban\n`/checkban` - Controlla se un utente è bannato\n`/checkmute` - Controlla se un utente è mutato',
+        value='`/ban` - Banna un membro\n`/kick` - Kicka un membro\n`/mute` - Muta un membro\n`/unmute` - Smuta un membro\n`/warn` - Aggiungi un warn\n`/unwarn` - Rimuovi un warn\n`/listwarns` - Mostra i warn\n`/clearwarns` - Rimuovi tutti i warn\n`/listban` - Mostra i ban\n`/checkban` - Controlla se un utente è bannato\n`/checkmute` - Controlla se un utente è mutato\n`/nick` - Imposta nickname a un utente',
         inline=False
     )
 
