@@ -6,6 +6,7 @@ import asyncio
 import os
 import re
 from dotenv import load_dotenv
+from console_logger import logger
 
 load_dotenv()
 
@@ -61,12 +62,12 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
-    print(f'Bot connesso come {bot.user}')
+    logger.info(f'Bot connesso come {bot.user}')
     try:
         synced = await bot.tree.sync()
-        print(f'Sincronizzati {len(synced)} comandi slash')
+        logger.info(f'Sincronizzati {len(synced)} comandi slash')
     except Exception as e:
-        print(f'Errore nella sincronizzazione: {e}')
+        logger.error(f'Errore nella sincronizzazione: {e}')
     
     active_counters = config.get('active_counters', {})
     for guild_id_str, channels in active_counters.items():
@@ -79,9 +80,9 @@ async def on_ready():
             channel = guild.get_channel(int(channel_id))
             if channel:
                 counter_channels[guild_id][channel_type] = channel
-                print(f'Counter {channel_type} caricato per guild {guild.name}')
+                logger.info(f'Counter {channel_type} caricato per guild {guild.name}')
             else:
-                print(f'Canale counter {channel_type} non trovato per guild {guild.name}, rimuovo dal config')
+                logger.warning(f'Canale counter {channel_type} non trovato per guild {guild.name}, rimuovo dal config')
                 del config['active_counters'][guild_id_str][channel_type]
                 if not config['active_counters'][guild_id_str]:
                     del config['active_counters'][guild_id_str]
@@ -91,7 +92,7 @@ async def on_ready():
     global counter_task
     if counter_channels and (counter_task is None or counter_task.done()):
         counter_task = bot.loop.create_task(counter_update_loop())
-        print('Loop di aggiornamento counter avviato')
+        logger.info('Loop di aggiornamento counter avviato')
 
     ticket_cog = bot.get_cog('TicketCog')
     if ticket_cog is None:
@@ -262,10 +263,10 @@ async def on_member_join(member):
         else:
             await welcome_channel.send(embed=embed)
 
-        print(f'Messaggio di benvenuto inviato per {member.name}')
-        
+        logger.info(f'Messaggio di benvenuto inviato per {member.name}')
+
     except Exception as e:
-        print(f'Errore nell\'invio del messaggio di benvenuto: {e}')
+        logger.error(f'Errore nell\'invio del messaggio di benvenuto: {e}')
 
 @bot.event
 async def on_member_update(before, after):
@@ -305,10 +306,10 @@ async def on_member_update(before, after):
 
             await boost_channel.send(embed=embed)
 
-            print(f'Messaggio di boost inviato per {after.name}')
+            logger.info(f'Messaggio di boost inviato per {after.name}')
 
         except Exception as e:
-            print(f'Errore nell\'invio del messaggio di boost: {e}')
+            logger.error(f'Errore nell\'invio del messaggio di boost: {e}')
 
 @bot.event
 async def on_message(message):
@@ -591,11 +592,13 @@ async def slash_cwend(interaction: discord.Interaction):
 
     if guild_id not in active_sessions:
         await interaction.response.send_message('❌ Non ci sono partite attive!', ephemeral=True)
+        logger.warning(f'Comando /cwend usato senza partite attive da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
 
     await interaction.response.send_message('🧹 Terminazione partita in corso...', ephemeral=True)
     await cleanup_session(guild_id)
     await interaction.followup.send('✅ Partita terminata e canali eliminati!', ephemeral=True)
+    logger.info(f'Partita terminata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 @bot.tree.command(name='setruleset', description='Imposta il ruleset (solo per admin)')
 @owner_or_has_permissions(administrator=True)
@@ -603,14 +606,17 @@ async def slash_setruleset(interaction: discord.Interaction):
     global waiting_for_ruleset
     waiting_for_ruleset = True
     await interaction.response.send_message('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.', ephemeral=False)
+    logger.info(f'Comando /setruleset usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 @bot.tree.command(name='ruleset', description='Mostra il ruleset salvato')
 async def slash_ruleset(interaction: discord.Interaction):
     if 'ruleset_message' not in config or not config['ruleset_message']:
         await interaction.response.send_message('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.', ephemeral=False)
+        logger.warning(f'Comando /ruleset usato senza ruleset configurato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
 
     await interaction.response.send_message(config['ruleset_message'], ephemeral=False)
+    logger.info(f'Ruleset mostrato a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 async def update_counters(guild):
     if guild.id not in counter_channels:
@@ -837,6 +843,7 @@ class SlashDeleteConfirmView(discord.ui.View):
 async def slash_delete(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator and interaction.user.id != 1123622103917285418:
         await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+        logger.warning(f'Comando /delete usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
     embed = discord.Embed(
         title='🗑️ Conferma Eliminazione',
@@ -846,6 +853,7 @@ async def slash_delete(interaction: discord.Interaction):
     embed.set_footer(text='Scade in 30 secondi')
     view = SlashDeleteConfirmView(interaction.user.id, interaction.channel)
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    logger.info(f'Conferma eliminazione canale richiesta da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) per canale {interaction.channel.name} in {interaction.guild.name}')
 
 @bot.tree.command(name='purge', description='Elimina un numero di messaggi (1-250)')
 @app_commands.describe(limit='Numero di messaggi da eliminare (1-250)')
@@ -853,29 +861,35 @@ async def slash_purge(interaction: discord.Interaction, limit: int):
     try:
         if not interaction.user.guild_permissions.manage_messages and interaction.user.id != OWNER_ID:
             await interaction.response.send_message('❌ Non hai abbastanza permessi!', ephemeral=True)
+            logger.warning(f'Comando /purge usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
             return
 
         if limit < 1 or limit > 250:
             await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
+            logger.warning(f'Comando /purge con limite invalido ({limit}) da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
             return
 
         await interaction.response.defer(ephemeral=True)
         deleted = await interaction.channel.purge(limit=limit, before=interaction.created_at)
         await interaction.followup.send(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=True)
+        logger.info(f'Purge eseguita: {len(deleted)} messaggi eliminati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in canale {interaction.channel.name} ({interaction.guild.name})')
     except discord.Forbidden:
         try:
             await interaction.followup.send('❌ Non ho i permessi per eliminare messaggi in questo canale!', ephemeral=True)
+            logger.error(f'Errore permessi purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         except Exception:
             pass
     except Exception as e:
         try:
             await interaction.followup.send(f'❌ Errore durante la purge: {e}', ephemeral=True)
+            logger.error(f'Errore purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
         except Exception:
             pass
 
 @bot.tree.command(name='ping', description='Mostra la latenza del bot')
 async def slash_ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
+    logger.info(f'Comando /ping usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Latenza: {round(bot.latency * 1000)}ms')
 
 @bot.tree.command(name='help', description='Mostra una lista di tutti i comandi slash disponibili')
 async def slash_help(interaction: discord.Interaction):
@@ -908,11 +922,126 @@ async def slash_help(interaction: discord.Interaction):
         value='`/createreact` - Crea messaggio reazione ruoli',
         inline=False
     )
-    
+
+    embed.add_field(
+        name='⚙️ Logs',
+        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log',
+        inline=False
+    )
+
 
     embed.set_footer(text='Valiance Bot | Usa / per accedere ai comandi')
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+    logger.info(f'Comando /help usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
+class LogSelectView(discord.ui.View):
+    def __init__(self, log_files, action='view'):
+        super().__init__(timeout=60)
+        self.log_files = log_files
+        self.action = action
+
+        options = []
+        for file in log_files:
+            options.append(discord.SelectOption(label=file, value=file))
+        if not options:
+            options.append(discord.SelectOption(label='Nessun file trovato', value='none'))
+
+        self.select = discord.ui.Select(placeholder='Seleziona un file di log', options=options)
+        self.select.callback = self.select_callback
+        self.add_item(self.select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        selected_file = self.select.values[0]
+        if selected_file == 'none':
+            await interaction.response.send_message('❌ Nessun file di log disponibile.', ephemeral=True)
+            return
+
+        if self.action == 'view':
+            file_path = os.path.join('logs', selected_file)
+            if os.path.exists(file_path):
+                try:
+                    await interaction.user.send(file=discord.File(file_path))
+                    await interaction.response.send_message(f'✅ File `{selected_file}` inviato in DM!', ephemeral=True)
+                    logger.info(f'File log {selected_file} inviato in DM a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
+                except Exception as e:
+                    await interaction.response.send_message(f'❌ Errore nell\'invio del file: {e}', ephemeral=True)
+                    logger.error(f'Errore invio file log {selected_file} a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
+            else:
+                await interaction.response.send_message('❌ File non trovato.', ephemeral=True)
+        elif self.action == 'delete':
+            embed = discord.Embed(
+                title='🗑️ Conferma Eliminazione',
+                description=f'Sei sicuro di voler eliminare il file di log **{selected_file}**?\n\nQuesta azione è irreversibile.',
+                color=0xff0000
+            )
+            embed.set_footer(text='Scade in 30 secondi')
+            view = DeleteLogConfirmView(selected_file, interaction.user.id)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+class DeleteLogConfirmView(discord.ui.View):
+    def __init__(self, filename, author_id):
+        super().__init__(timeout=30)
+        self.filename = filename
+        self.author_id = author_id
+
+    @discord.ui.button(label='Conferma', style=discord.ButtonStyle.danger, emoji='🗑️')
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può confermare!', ephemeral=True)
+            return
+        file_path = os.path.join('logs', self.filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                await interaction.response.edit_message(content=f'✅ File di log `{self.filename}` eliminato con successo!', view=None)
+                logger.info(f'File log {self.filename} eliminato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
+            except Exception as e:
+                await interaction.response.edit_message(content=f'❌ Errore nell\'eliminazione del file: {e}', view=None)
+                logger.error(f'Errore eliminazione file log {self.filename} da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
+        else:
+            await interaction.response.edit_message(content='❌ File non trovato.', view=None)
+
+    @discord.ui.button(label='Annulla', style=discord.ButtonStyle.secondary, emoji='❌')
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message('❌ Solo chi ha eseguito il comando può annullare!', ephemeral=True)
+            return
+        await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
+
+@bot.tree.command(name='logs', description='Visualizza e scarica i file di log del bot')
+@owner_or_has_permissions(administrator=True)
+async def slash_logs(interaction: discord.Interaction):
+    logs_dir = 'logs'
+    if not os.path.exists(logs_dir):
+        await interaction.response.send_message('❌ Cartella logs non trovata.', ephemeral=True)
+        return
+
+    log_files = [f for f in os.listdir(logs_dir) if f.endswith('.log')]
+    if not log_files:
+        await interaction.response.send_message('❌ Nessun file di log trovato.', ephemeral=True)
+        return
+
+    view = LogSelectView(log_files, action='view')
+    await interaction.response.send_message('📄 Seleziona un file di log da visualizzare:', view=view, ephemeral=True)
+    logger.info(f'Comando /logs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
+@bot.tree.command(name='dellogs', description='Elimina un file di log del bot')
+@owner_or_has_permissions(administrator=True)
+async def slash_dellogs(interaction: discord.Interaction):
+    logs_dir = 'logs'
+    if not os.path.exists(logs_dir):
+        await interaction.response.send_message('❌ Cartella logs non trovata.', ephemeral=True)
+        return
+
+    log_files = [f for f in os.listdir(logs_dir) if f.endswith('.log')]
+    if not log_files:
+        await interaction.response.send_message('❌ Nessun file di log trovato.', ephemeral=True)
+        return
+
+    view = LogSelectView(log_files, action='delete')
+    await interaction.response.send_message('🗑️ Seleziona un file di log da eliminare:', view=view, ephemeral=True)
+    logger.info(f'Comando /dellogs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):

@@ -6,6 +6,7 @@ import datetime
 import re
 from discord import app_commands
 from bot_utils import is_owner
+from console_logger import logger
 
 class ModerationCog(commands.Cog):
     def __init__(self, bot):
@@ -73,8 +74,10 @@ class ModerationCog(commands.Cog):
             await self.send_dm(member, "ban", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
             await member.ban(reason=reason)
             await ctx.send(f'✅ {member.mention} è stato bannato. Ragione: {reason}')
+            logger.info(f'Ban eseguito: {member.name}#{member.discriminator} ({member.id}) bannato da {ctx.author.name}#{ctx.author.discriminator} per: {reason}')
         except Exception as e:
             await ctx.send(f'❌ Errore nel bannare: {e}')
+            logger.error(f'Errore ban: {member.name}#{member.discriminator} ({member.id}) - {e}')
 
     @app_commands.command(name='ban', description='Banna un membro dal server')
     @app_commands.describe(member='Il membro da bannare', reason='La ragione del ban')
@@ -102,8 +105,10 @@ class ModerationCog(commands.Cog):
             await self.send_dm(member, "kick", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
             await member.kick(reason=reason)
             await ctx.send(f'✅ {member.mention} è stato kickato. Ragione: {reason}')
+            logger.info(f'Kick eseguito: {member.name}#{member.discriminator} ({member.id}) kickato da {ctx.author.name}#{ctx.author.discriminator} per: {reason}')
         except Exception as e:
             await ctx.send(f'❌ Errore nel kickare: {e}')
+            logger.error(f'Errore kick: {member.name}#{member.discriminator} ({member.id}) - {e}')
 
     @app_commands.command(name='kick', description='Kicka un membro dal server')
     @app_commands.describe(member='Il membro da kickare', reason='La ragione del kick')
@@ -675,14 +680,16 @@ class ListBanView(discord.ui.View):
                                 await message.author.timeout(delta, reason=f'Auto-mute per parola vietata ripetuta: {word}')
                                 await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata ripetuta.')
                                 await self.send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata ripetuta: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
+                                logger.warning(f'Auto-mute ripetuto: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per {duration} - parola: {word}')
                             else:
                                 await self.send_dm(message.author, "word_warning", word=word)
                                 if user_id_str not in self.user_words:
                                     self.user_words[user_id_str] = []
                                 self.user_words[user_id_str].append(word.lower())
                                 await message.channel.send(f'{message.author.mention} ha ricevuto un avviso per una parola vietata. Non ripeterla!')
+                                logger.info(f'Avviso parola vietata: {message.author.name}#{message.author.discriminator} ({message.author.id}) - parola: {word}')
                         except Exception as e:
-                            print(f'Errore: {e}')
+                            logger.error(f'Errore nell\'automod parola vietata: {e}')
                         self.save_user_words()
                         return
 
@@ -695,8 +702,9 @@ class ListBanView(discord.ui.View):
                 await message.author.timeout(datetime.timedelta(days=1), reason="Spam Link")
                 await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per 1 giorno a causa di un link invito Discord.')
                 await self.send_dm(message.author, "mute", reason="Spam Link", staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration="1d")
+                logger.warning(f'Auto-mute link Discord: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per 1 giorno')
             except Exception as e:
-                print(f'Errore nel mutare per link invito: {e}')
+                logger.error(f'Errore nell\'automod link Discord: {e}')
             return
 
 async def setup(bot):

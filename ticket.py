@@ -8,6 +8,7 @@ from discord import InteractionType
 import asyncio
 from discord import app_commands
 from bot_utils import is_owner
+from console_logger import logger
 
 class TicketCog(commands.Cog):
     def __init__(self, bot):

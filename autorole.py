@@ -4,6 +4,7 @@ from discord import app_commands
 from bot_utils import is_owner
 import json
 import os
+from console_logger import logger
 
 class AutoRoleCog(commands.Cog):
     def __init__(self, bot):
@@ -75,9 +76,9 @@ class AutoRoleCog(commands.Cog):
 
             try:
                 await member.add_roles(role)
-                print(f'Ruolo {role.name} assegnato a {member.name}')
+                logger.info(f'Ruolo {role.name} assegnato a {member.name}#{member.discriminator} ({member.id})')
             except Exception as e:
-                print(f'Errore nell\'assegnazione del ruolo: {e}')
+                logger.error(f'Errore nell\'assegnazione del ruolo {role.name} a {member.name}#{member.discriminator} ({member.id}): {e}')
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
@@ -101,9 +102,9 @@ class AutoRoleCog(commands.Cog):
 
             try:
                 await member.remove_roles(role)
-                print(f'Ruolo {role.name} rimosso da {member.name}')
+                logger.info(f'Ruolo {role.name} rimosso da {member.name}#{member.discriminator} ({member.id})')
             except Exception as e:
-                print(f'Errore nella rimozione del ruolo: {e}')
+                logger.error(f'Errore nella rimozione del ruolo {role.name} da {member.name}#{member.discriminator} ({member.id}): {e}')
 
 async def setup(bot):
     await bot.add_cog(AutoRoleCog(bot))
