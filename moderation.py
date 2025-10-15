@@ -566,6 +566,24 @@ class ModerationCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nel recuperare la lista ban: {e}', ephemeral=True)
 
+    @app_commands.command(name='nick', description='Cambia il nickname di un membro')
+    @app_commands.describe(member='Il membro a cui cambiare il nickname', nickname='Il nuovo nickname (lascia vuoto per resettare)')
+    async def slash_nick(self, interaction: discord.Interaction, member: discord.Member, nickname: str = None):
+        staff_role_id = self.config.get('moderation', {}).get('staff_role_id', '1350073958933729371')
+        if not is_owner(interaction.user) and not any(role.id == int(staff_role_id) for role in interaction.user.roles):
+            await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
+            return
+
+        try:
+            if nickname is None:
+                await member.edit(nick=None)
+                await interaction.response.send_message(f'✅ Nickname di {member.mention} resettato.', ephemeral=True)
+            else:
+                await member.edit(nick=nickname)
+                await interaction.response.send_message(f'✅ Nickname di {member.mention} cambiato in "{nickname}".', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel cambiare nickname: {e}', ephemeral=True)
+
 class ListBanView(discord.ui.View):
     def __init__(self, bans, current_page=0):
         super().__init__(timeout=300)
