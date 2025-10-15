@@ -529,7 +529,7 @@ class ConfirmCloseView(discord.ui.View):
             if transcript_channel:
                 await transcript_channel.send(embed=embed, file=discord.File(filename))
             else:
-                print('Canale transcript non trovato!')
+                logger.error('Canale transcript non trovato!')
 
         if owner_id:
             owner = channel.guild.get_member(owner_id)

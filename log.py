@@ -4,6 +4,7 @@ import json
 import os
 import asyncio
 from datetime import datetime, timezone, timedelta
+from console_logger import logger
 
 
 class LogCog(commands.Cog):
@@ -92,7 +93,7 @@ class LogCog(commands.Cog):
             await asyncio.sleep(5)
             await channel.send(embed=embed)
         except Exception as e:
-            print(f'Errore in on_member_join log cog: {e}')
+            logger.error(f'Errore in on_member_join log cog: {e}')
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
@@ -148,7 +149,7 @@ class LogCog(commands.Cog):
             await asyncio.sleep(5)
             await channel.send(embed=embed)
         except Exception as e:
-            print(f'Errore in on_member_remove log cog: {e}')
+            logger.error(f'Errore in on_member_remove log cog: {e}')
 
 async def setup(bot):
     await bot.add_cog(LogCog(bot))

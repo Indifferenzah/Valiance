@@ -99,11 +99,11 @@ async def on_ready():
         ticket_cog = TicketCog(bot)
         try:
             await bot.add_cog(ticket_cog)
-            print('Ticket cog aggiunto')
+            logger.info('Ticket cog aggiunto')
         except Exception as e:
-            print(f'Ticket cog non aggiunto: {e}')
+            logger.error(f'Ticket cog non aggiunto: {e}')
     else:
-        print('Ticket cog già caricato')
+        logger.warning('Ticket cog già caricato')
 
     for channel_id, ticket_info in list(ticket_cog.ticket_owners.items()):
         if isinstance(ticket_info, dict) and 'close_message_id' in ticket_info:
@@ -113,43 +113,43 @@ async def on_ready():
                     message = await channel.fetch_message(ticket_info['close_message_id'])
                     view = CloseTicketView(channel_id, ticket_cog)
                     await message.edit(view=view)
-                    print(f'View re-attached for ticket {channel.name}')
+                    logger.info(f'View re-attached for ticket {channel.name}')
                 except Exception as e:
-                    print(f'Errore nel re-attach della view per ticket {channel_id}: {e}')
+                    logger.error(f'Errore nel re-attach della view per ticket {channel_id}: {e}')
             else:
                 del ticket_cog.ticket_owners[channel_id]
                 ticket_cog.save_tickets()
-                print(f'Ticket {channel_id} rimosso (canale eliminato)')
+                logger.info(f'Ticket {channel_id} rimosso (canale eliminato)')
 
     moderation_cog = bot.get_cog('ModerationCog')
     if moderation_cog is None:
         try:
             await bot.add_cog(ModerationCog(bot))
-            print('Moderation cog aggiunto')
+            logger.info('Moderation cog aggiunto')
         except Exception as e:
-            print(f'Moderation cog non aggiunto: {e}')
+            logger.error(f'Moderation cog non aggiunto: {e}')
     else:
-        print('Moderation cog già caricato')
+        logger.warning('Moderation cog già caricato')
 
     log_cog = bot.get_cog('LogCog')
     if log_cog is None:
         try:
             await bot.add_cog(LogCog(bot))
-            print('Log cog aggiunto')
+            logger.info('Log cog aggiunto')
         except Exception as e:
-            print(f'Log cog non aggiunto: {e}')
+            logger.error(f'Log cog non aggiunto: {e}')
     else:
-        print('Log cog già caricato')
+        logger.warning('Log cog già caricato')
 
     autorole_cog = bot.get_cog('AutoRoleCog')
     if autorole_cog is None:
         try:
             await bot.add_cog(AutoRoleCog(bot))
-            print('AutoRole cog aggiunto')
+            logger.info('AutoRole cog aggiunto')
         except Exception as e:
-            print(f'AutoRole cog non aggiunto: {e}')
+            logger.error(f'AutoRole cog non aggiunto: {e}')
     else:
-        print('AutoRole cog già caricato')
+        logger.warning('AutoRole cog già caricato')
 
     ticket_cog = bot.get_cog('TicketCog')
     if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
@@ -171,9 +171,9 @@ async def on_ready():
                 all_buttons = config.get('ticket_buttons', [])
                 view = TicketView(all_buttons, config, ticket_cog)
                 await message.edit(embed=embed, view=view)
-                print('Ticket panel view re-attached')
+                logger.info('Ticket panel view re-attached')
             except Exception as e:
-                print(f'Errore nel ricaricare il pannello ticket: {e}')
+                logger.error(f'Errore nel ricaricare il pannello ticket: {e}')
 
 @bot.event
 async def on_member_remove(member):
@@ -216,7 +216,7 @@ async def on_voice_state_update(member, before, after):
                         await cleanup_session(gid)
                     break
     except Exception as e:
-        print(f'Errore nel controllo di pulizia voice: {e}')
+        logger.error(f'Errore nel controllo di pulizia voice: {e}')
 
 @bot.event
 async def on_member_join(member):
@@ -358,7 +358,7 @@ async def on_message(message):
             try:
                 await message.add_reaction(emoji)
             except Exception as e:
-                print(f'Errore nell\'aggiungere reazione {emoji}: {e}')
+                logger.error(f'Errore nell\'aggiungere reazione {emoji}: {e}')
 
     guild = message.guild
     if not guild or guild.id not in active_sessions:
@@ -380,11 +380,11 @@ async def on_message(message):
                     target_channel = session.red_voice if is_red else session.green_voice
                     await mention.move_to(target_channel)
                     team_name = "ROSSO" if is_red else "VERDE"
-                    print(f'Spostato {mention.name} nel team {team_name}')
+                    logger.info(f'Spostato {mention.name} nel team {team_name}')
                     
                     await session.text_channel.send(f'{mention.mention} → {"Team Rosso" if is_red else "Team Verde"}')
                 except Exception as e:
-                    print(f'Errore nello spostamento di {mention.name}: {e}')
+                    logger.error(f'Errore nello spostamento di {mention.name}: {e}')
 
 async def check_and_create_game(lobby_channel):
     guild = lobby_channel.guild
@@ -395,7 +395,7 @@ async def check_and_create_game(lobby_channel):
     members = [m for m in lobby_channel.members if not m.bot]
     
     if len(members) >= 1:
-        print(f'Giocatore rilevato! Creazione partita...')
+        logger.info(f'Giocatore rilevato! Creazione partita...')
         await create_game_session(guild, lobby_channel)
 
 async def create_game_session(guild, lobby_channel):
@@ -488,10 +488,10 @@ async def create_game_session(guild, lobby_channel):
 
         active_sessions[guild.id] = session
 
-        print(f'Partita creata con successo nel server {guild.name}')
+        logger.info(f'Partita creata con successo nel server {guild.name}')
 
     except Exception as e:
-        print(f'Errore nella creazione della partita: {e}')
+        logger.error(f'Errore nella creazione della partita: {e}')
         await cleanup_session(guild.id)
 
 async def assign_teams(session):
@@ -530,9 +530,9 @@ async def assign_teams(session):
             try:
                 if member.voice and member.voice.channel:
                     await member.move_to(session.red_voice)
-                    print(f'Spostato {member.name} nel team ROSSO')
+                    logger.info(f'Spostato {member.name} nel team ROSSO')
             except Exception as e:
-                print(f'Errore nello spostamento di {member.name} nel ROSSO: {e}')
+                logger.error(f'Errore nello spostamento di {member.name} nel ROSSO: {e}')
 
         await asyncio.sleep(0.5)
 
@@ -540,14 +540,14 @@ async def assign_teams(session):
             try:
                 if member.voice and member.voice.channel:
                     await member.move_to(session.green_voice)
-                    print(f'Spostato {member.name} nel team VERDE')
+                    logger.info(f'Spostato {member.name} nel team VERDE')
             except Exception as e:
-                print(f'Errore nello spostamento di {member.name} nel VERDE: {e}')
+                logger.error(f'Errore nello spostamento di {member.name} nel VERDE: {e}')
 
-        print(f'Team assegnati con successo nel server {session.guild.name}')
+        logger.info(f'Team assegnati con successo nel server {session.guild.name}')
 
     except Exception as e:
-        print(f'Errore nell\'assegnazione dei team: {e}')
+        logger.error(f'Errore nell\'assegnazione dei team: {e}')
 
 async def cleanup_session(guild_id):
     if guild_id not in active_sessions:
@@ -559,29 +559,29 @@ async def cleanup_session(guild_id):
         if session.text_channel:
             try:
                 await session.text_channel.delete()
-                print(f'Canale di testo eliminato')
+                logger.info(f'Canale di testo eliminato')
             except Exception as e:
-                print(f'Errore nell\'eliminazione del canale di testo: {e}')
+                logger.error(f'Errore nell\'eliminazione del canale di testo: {e}')
         
         if session.red_voice:
             try:
                 await session.red_voice.delete()
-                print(f'Canale vocale ROSSO eliminato')
+                logger.info(f'Canale vocale ROSSO eliminato')
             except Exception as e:
-                print(f'Errore nell\'eliminazione del canale ROSSO: {e}')
+                logger.error(f'Errore nell\'eliminazione del canale ROSSO: {e}')
         
         if session.green_voice:
             try:
                 await session.green_voice.delete()
-                print(f'Canale vocale VERDE eliminato')
+                logger.info(f'Canale vocale VERDE eliminato')
             except Exception as e:
-                print(f'Errore nell\'eliminazione del canale VERDE: {e}')
+                logger.error(f'Errore nell\'eliminazione del canale VERDE: {e}')
         
         del active_sessions[guild_id]
-        print(f'Sessione pulita con successo')
+        logger.info(f'Sessione pulita con successo')
         
     except Exception as e:
-        print(f'Errore durante la pulizia: {e}')
+        logger.error(f'Errore durante la pulizia: {e}')
 
 
 
@@ -638,7 +638,7 @@ async def update_counters(guild):
                         del config['active_counters'][str(guild.id)]
                     with open('config.json', 'w', encoding='utf-8') as f:
                         json.dump(config, f, indent=2, ensure_ascii=False)
-                print(f'Counter {channel_type} rimosso per guild {guild.name} (canale eliminato)')
+                logger.info(f'Counter {channel_type} rimosso per guild {guild.name} (canale eliminato)')
 
         counters_config = config.get('counters', {})
 
@@ -656,7 +656,7 @@ async def update_counters(guild):
             new_name = name_template.replace('{count}', str(total_members))
             if channel.name != new_name:
                 await channel.edit(name=new_name)
-                print(f'Aggiornato counter membri totali: {new_name}')
+                logger.info(f'Aggiornato counter membri totali: {new_name}')
 
         if 'role_members' in counter_channels[guild.id]:
             channel = counter_channels[guild.id]['role_members']
@@ -664,10 +664,10 @@ async def update_counters(guild):
             new_name = name_template.replace('{count}', str(role_members))
             if channel.name != new_name:
                 await channel.edit(name=new_name)
-                print(f'Aggiornato counter membri ruolo: {new_name}')
+                logger.info(f'Aggiornato counter membri ruolo: {new_name}')
 
     except Exception as e:
-        print(f'Errore nell\'aggiornamento dei counter: {e}')
+        logger.error(f'Errore nell\'aggiornamento dei counter: {e}')
 
 async def counter_update_loop():
     await bot.wait_until_ready()
@@ -679,7 +679,7 @@ async def counter_update_loop():
                     await update_counters(guild)
             await asyncio.sleep(30)
         except Exception as e:
-            print(f'Errore nel loop di aggiornamento counter: {e}')
+            logger.error(f'Errore nel loop di aggiornamento counter: {e}')
             await asyncio.sleep(15)
 
 @bot.tree.command(name='startct', description='Avvia i canali counter (solo admin)')
@@ -744,11 +744,11 @@ async def slash_startct(interaction: discord.Interaction):
             counter_task = bot.loop.create_task(counter_update_loop())
 
         await interaction.followup.send(f'✅ Canali counter creati con successo!\n📊 Membri totali: {total_members}\n⭐ Membri clan: {role_members}', ephemeral=False)
-        print(f'Counter attivati nel server {guild.name}')
+        logger.info(f'Counter attivati nel server {guild.name}')
 
     except Exception as e:
         await interaction.followup.send(f'❌ Errore nella creazione dei counter: {e}', ephemeral=True)
-        print(f'Errore nella creazione dei counter: {e}')
+        logger.error(f'Errore nella creazione dei counter: {e}')
 
 @bot.tree.command(name='stopct', description='Ferma e elimina i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
@@ -767,9 +767,9 @@ async def slash_stopct(interaction: discord.Interaction):
         for channel_type, channel in counter_channels[guild.id].items():
             try:
                 await channel.delete()
-                print(f'Canale counter {channel_type} eliminato per guild {guild.name}')
+                logger.info(f'Canale counter {channel_type} eliminato per guild {guild.name}')
             except Exception as e:
-                print(f'Errore nell\'eliminazione del canale {channel_type}: {e}')
+                logger.error(f'Errore nell\'eliminazione del canale {channel_type}: {e}')
 
         del counter_channels[guild.id]
 
@@ -781,14 +781,14 @@ async def slash_stopct(interaction: discord.Interaction):
         if not counter_channels and counter_task and not counter_task.done():
             counter_task.cancel()
             counter_task = None
-            print('Loop di aggiornamento counter fermato')
+            logger.info('Loop di aggiornamento counter fermato')
 
         await interaction.followup.send('✅ Counter fermati e canali eliminati con successo!', ephemeral=False)
-        print(f'Counter fermati nel server {guild.name}')
+        logger.info(f'Counter fermati nel server {guild.name}')
 
     except Exception as e:
         await interaction.followup.send(f'❌ Errore nel fermare i counter: {e}', ephemeral=True)
-        print(f'Errore nel fermare i counter: {e}')
+        logger.error(f'Errore nel fermare i counter: {e}')
 
 class DeleteConfirmView(discord.ui.View):
     def __init__(self, ctx):
@@ -802,7 +802,7 @@ class DeleteConfirmView(discord.ui.View):
             return
 
         try:
-            print(f'{self.ctx.author.name} ha eliminato il canale {self.ctx.channel.name}')
+            logger.info(f'{self.ctx.author.name} ha eliminato il canale {self.ctx.channel.name}')
             await self.ctx.channel.delete()
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nell\'eliminazione del canale: {e}', ephemeral=True)
@@ -1057,7 +1057,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
             return
 
         if isinstance(error, discord.errors.NotFound):
-            print(f'Ignored NotFound in app command: {error}')
+            logger.error(f'Ignored NotFound in app command: {error}')
             return
 
         try:
@@ -1086,11 +1086,11 @@ if __name__ == '__main__':
                             await setup(bot)
                         else:
                             setup(bot)
-                    print(f'Extension {modname} setup executed')
+                    logger.info(f'Extension {modname} setup executed')
                 except Exception as e:
-                    print(f'Non sono riuscito a caricare {modname}: {e}')
+                    logger.error(f'Non sono riuscito a caricare {modname}: {e}')
 
         asyncio.run(setup_modules())
         bot.run(os.getenv('TOKEN'))
     except Exception as e:
-        print(f'Errore nell\'avvio del bot: {e}')
+        logger.error(f'Errore nell\'avvio del bot: {e}')

@@ -30,8 +30,8 @@ def setup_logger():
     logger = logging.getLogger('valiance_bot')
     logger.setLevel(logging.DEBUG)
 
-    console_formatter = ColoredFormatter('%(asctime)s %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S] //')
-    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S] //')
+    console_formatter = ColoredFormatter('%(asctime)s %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S]')
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S]')
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
