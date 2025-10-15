@@ -347,6 +347,8 @@ async def on_message(message):
     prefixes = config.get('prefixes', ['v!'])
     for prefix in prefixes:
         if content.startswith(prefix):
+            if content.startswith(prefix + "!") or content.startswith(prefix + "?"):
+                return
             await message.channel.send('❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.')
             return
 

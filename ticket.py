@@ -318,28 +318,35 @@ class TicketCog(commands.Cog):
             if owner_id == user.id:
                 channel = self.bot.get_channel(channel_id)
                 if channel:
-                    open_tickets.append(f"#{channel.name}")
+                    open_tickets.append(channel.mention)
 
         for ticket_num, info in self.closed_tickets.items():
             if info.get('owner') == user.id:
-                closed_tickets.append(f"#{ticket_num} - {info.get('channel_name', 'Unknown')}")
+                closed_tickets.append(f"***`#{ticket_num}`*** - {info.get('channel_name', 'Unknown')}")
 
         embed = discord.Embed(
             title=f'Ticket di {user.name}',
             color=0x00ff00
         )
+        embed.set_author(name=user.name, icon_url=user.display_avatar.url)
+        embed.set_footer(text='Valiance | Ticket System')
 
         if open_tickets:
-            embed.add_field(name='Ticket Aperti', value='\n'.join(open_tickets), inline=False)
+            embed.add_field(name='**Ticket Aperti**', value='\n'.join(open_tickets), inline=False)
         else:
-            embed.add_field(name='Ticket Aperti', value='Nessuno', inline=False)
+            embed.add_field(name='**Ticket Aperti**', value='Nessuno', inline=False)
 
         if closed_tickets:
-            embed.add_field(name='Ticket Chiusi', value='\n'.join(closed_tickets), inline=False)
+            embed.add_field(name='**Ticket Chiusi**', value='\n'.join(closed_tickets), inline=False)
         else:
-            embed.add_field(name='Ticket Chiusi', value='Nessuno', inline=False)
+            embed.add_field(name='**Ticket Chiusi**', value='Nessuno', inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        await asyncio.sleep(60)
+        try:
+            await interaction.delete_original_response()
+        except Exception:
+            pass
 
     @app_commands.command(name='transcript', description='Invia il transcript di un ticket chiuso')
     @app_commands.describe(number='Numero del ticket')
@@ -412,8 +419,13 @@ class TicketButton(discord.ui.Button):
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
+        ticket_number = self.view.cog.config.get('ticket_counter', 0) + 1
+        self.view.cog.config['ticket_counter'] = ticket_number
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(self.view.cog.config, f, indent=2, ensure_ascii=False)
+
         channel = await guild.create_text_channel(
-            name=f'ticket-{interaction.user.name}',
+            name=f'ticket-{ticket_number}',
             category=category,
             overwrites=overwrites
         )

@@ -40,8 +40,13 @@ def setup_logger():
     console_handler.setFormatter(console_formatter)
 
     today = datetime.now().strftime('%Y-%m-%d')
-    log_file = os.path.join(logs_dir, f'bot_{today}.log')
-    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5)
+    base_log_file = os.path.join(logs_dir, f'bot_{today}.log')
+    log_file = base_log_file
+    counter = 1
+    while os.path.exists(log_file):
+        log_file = os.path.join(logs_dir, f'bot_{today}_{counter}.log')
+        counter += 1
+    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
 
