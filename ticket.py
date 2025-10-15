@@ -178,6 +178,13 @@ class TicketCog(commands.Cog):
                 await interaction.response.send_message('❌ Il nome è troppo lungo! (max 100 caratteri)', ephemeral=True)
                 return
 
+            if channel.id in self.ticket_owners and 'number' not in self.ticket_owners[channel.id]:
+                try:
+                    old_number = int(channel.name.split('-')[1])
+                    self.ticket_owners[channel.id]['number'] = old_number
+                    self.save_tickets()
+                except (IndexError, ValueError):
+                    pass
             await channel.edit(name=new_name)
             tpl = self.ticket_messages.get('rename')
             if tpl:
@@ -430,7 +437,7 @@ class TicketButton(discord.ui.Button):
             overwrites=overwrites
         )
 
-        self.view.cog.ticket_owners[channel.id] = {'owner': interaction.user.id, 'button': self.custom_id}
+        self.view.cog.ticket_owners[channel.id] = {'owner': interaction.user.id, 'button': self.custom_id, 'number': ticket_number}
 
         outside_message = self.btn_config.get('outside_message', 'Ticket aperto!')
         outside_message = outside_message.replace('{mention}', interaction.user.mention)
@@ -500,14 +507,17 @@ class ConfirmCloseView(discord.ui.View):
         if isinstance(ticket_info, int):
             owner_id = ticket_info
             button_id = ''
+            try:
+                ticket_number = int(channel.name.split('-')[1])
+            except (IndexError, ValueError):
+                ticket_number = self.cog.config.get('ticket_counter', 0) + 1
+                self.cog.config['ticket_counter'] = ticket_number
+                with open('config.json', 'w', encoding='utf-8') as f:
+                    json.dump(self.cog.config, f, indent=2, ensure_ascii=False)
         else:
             owner_id = ticket_info.get('owner')
             button_id = ticket_info.get('button', '')
-
-        ticket_number = self.cog.config.get('ticket_counter', 0) + 1
-        self.cog.config['ticket_counter'] = ticket_number
-        with open('config.json', 'w', encoding='utf-8') as f:
-            json.dump(self.cog.config, f, indent=2, ensure_ascii=False)
+            ticket_number = ticket_info.get('number')
 
         filename = f'transcripts/transcript-{ticket_number}.txt'
         os.makedirs('transcripts', exist_ok=True)
