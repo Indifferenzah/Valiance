@@ -57,6 +57,35 @@ class LogCog(commands.Cog):
             s = s.replace('{' + k + '}', str(v))
         return s
 
+    async def _send_log_embed(self, channel_id, embed_config, **kwargs):
+        try:
+            if not channel_id:
+                return
+            channel = self.bot.get_channel(int(channel_id))
+            if not channel:
+                return
+
+            cfg = embed_config
+            title = self._render_template(cfg.get('title', ''), **kwargs)
+            description = self._render_template(cfg.get('description', ''), **kwargs)
+
+            embed = discord.Embed(title=title or None, description=description or None, color=cfg.get('color', 0x00ff00))
+            if cfg.get('thumbnail'):
+                thumb = self._render_template(cfg.get('thumbnail'), **kwargs)
+                embed.set_thumbnail(url=thumb)
+            if cfg.get('author_header'):
+                try:
+                    embed.set_author(name=kwargs.get('author_name', ''), icon_url=kwargs.get('author_icon', ''))
+                except Exception:
+                    pass
+            if cfg.get('footer'):
+                footer = self._render_template(cfg.get('footer'), **kwargs)
+                embed.set_footer(text=footer)
+
+            await channel.send(embed=embed)
+        except Exception as e:
+            logger.error(f'Errore in _send_log_embed: {e}')
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         try:
@@ -150,6 +179,345 @@ class LogCog(commands.Cog):
             await channel.send(embed=embed)
         except Exception as e:
             logger.error(f'Errore in on_member_remove log cog: {e}')
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, user: discord.User):
+        try:
+            async for entry in guild.audit_logs(action=discord.AuditLogAction.ban, limit=1):
+                if entry.target.id == user.id:
+                    staffer = entry.user.mention if entry.user else 'Sistema'
+                    reason = entry.reason or 'Nessuna ragione'
+                    break
+            else:
+                staffer = 'Sistema'
+                reason = 'Nessuna ragione'
+
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('ban_message', {}),
+                mention=user.mention,
+                id=user.id,
+                avatar=user.display_avatar.url,
+                author_name=user.display_name,
+                author_icon=user.display_avatar.url,
+                total_members=guild.member_count,
+                staffer=staffer,
+                reason=reason
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_member_ban: {e}')
+
+    @commands.Cog.listener()
+    async def on_member_unban(self, guild: discord.Guild, user: discord.User):
+        try:
+            async for entry in guild.audit_logs(action=discord.AuditLogAction.unban, limit=1):
+                if entry.target.id == user.id:
+                    staffer = entry.user.mention if entry.user else 'Sistema'
+                    break
+            else:
+                staffer = 'Sistema'
+
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('unban_message', {}),
+                mention=user.mention,
+                id=user.id,
+                avatar=user.display_avatar.url,
+                author_name=user.display_name,
+                author_icon=user.display_avatar.url,
+                total_members=guild.member_count,
+                staffer=staffer
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_member_unban: {e}')
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        try:
+            if before.is_timed_out() != after.is_timed_out():
+                if after.is_timed_out():
+                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
+                        if entry.target.id == after.id and entry.after.timed_out_until is not None:
+                            staffer = entry.user.mention if entry.user else 'Sistema'
+                            reason = entry.reason or 'Nessuna ragione'
+                            duration = 'Unknown'
+                            if entry.after.timed_out_until:
+                                delta = entry.after.timed_out_until - datetime.now(timezone.utc)
+                                duration = self._format_timedelta(delta)
+                            break
+                    else:
+                        staffer = 'Sistema'
+                        reason = 'Nessuna ragione'
+                        duration = 'Unknown'
+
+                    await self._send_log_embed(
+                        self.log_config.get('moderation_log_channel_id'),
+                        self.log_config.get('mute_message', {}),
+                        mention=after.mention,
+                        id=after.id,
+                        avatar=after.display_avatar.url,
+                        author_name=after.display_name,
+                        author_icon=after.display_avatar.url,
+                        total_members=after.guild.member_count,
+                        staffer=staffer,
+                        reason=reason,
+                        duration=duration
+                    )
+                else:
+                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
+                        if entry.target.id == after.id and entry.before.timed_out_until is not None and entry.after.timed_out_until is None:
+                            staffer = entry.user.mention if entry.user else 'Sistema'
+                            break
+                    else:
+                        staffer = 'Sistema'
+
+                    await self._send_log_embed(
+                        self.log_config.get('moderation_log_channel_id'),
+                        self.log_config.get('unmute_message', {}),
+                        mention=after.mention,
+                        id=after.id,
+                        avatar=after.display_avatar.url,
+                        author_name=after.display_name,
+                        author_icon=after.display_avatar.url,
+                        total_members=after.guild.member_count,
+                        staffer=staffer
+                    )
+            elif before.nick != after.nick:
+                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
+                    if entry.target.id == after.id and (entry.before.nick != entry.after.nick):
+                        staffer = entry.user.mention if entry.user else 'Sistema'
+                        new_nick = entry.after.nick or 'Resettato'
+                        break
+                else:
+                    staffer = 'Sistema'
+                    new_nick = after.nick or 'Resettato'
+
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('nick_message', {}),
+                    mention=after.mention,
+                    id=after.id,
+                    avatar=after.display_avatar.url,
+                    author_name=after.display_name,
+                    author_icon=after.display_avatar.url,
+                    total_members=after.guild.member_count,
+                    staffer=staffer,
+                    new_nick=new_nick
+                )
+            elif before.premium_since != after.premium_since and after.premium_since is not None:
+                await self._send_log_embed(
+                    self.log_config.get('boost_log_channel_id'),
+                    self.log_config.get('boost_message', {}),
+                    mention=after.mention,
+                    id=after.id,
+                    avatar=after.display_avatar.url,
+                    author_name=after.display_name,
+                    author_icon=after.display_avatar.url,
+                    total_members=after.guild.member_count
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_member_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        try:
+            if message.author.bot:
+                return
+            content = message.content or 'Nessun contenuto'
+            await self._send_log_embed(
+                self.log_config.get('message_log_channel_id'),
+                self.log_config.get('message_delete_message', {}),
+                mention=message.author.mention,
+                id=message.author.id,
+                avatar=message.author.display_avatar.url,
+                author_name=message.author.display_name,
+                author_icon=message.author.display_avatar.url,
+                total_members=message.guild.member_count,
+                channel=message.channel.mention,
+                content=content[:1000] + ('...' if len(content) > 1000 else '')
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_message_delete: {e}')
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message):
+        try:
+            if before.author.bot or before.content == after.content:
+                return
+            old_content = before.content or 'Nessun contenuto'
+            new_content = after.content or 'Nessun contenuto'
+            await self._send_log_embed(
+                self.log_config.get('message_log_channel_id'),
+                self.log_config.get('message_edit_message', {}),
+                mention=before.author.mention,
+                id=before.author.id,
+                avatar=before.author.display_avatar.url,
+                author_name=before.author.display_name,
+                author_icon=before.author.display_avatar.url,
+                total_members=before.guild.member_count,
+                channel=before.channel.mention,
+                old_content=old_content[:500] + ('...' if len(old_content) > 500 else ''),
+                new_content=new_content[:500] + ('...' if len(new_content) > 500 else '')
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_message_edit: {e}')
+
+    async def log_warn(self, member: discord.Member, reason: str, staffer: str, total_warns: int):
+        await self._send_log_embed(
+            self.log_config.get('moderation_log_channel_id'),
+            self.log_config.get('warn_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            staffer=staffer,
+            reason=reason,
+            total_warns=total_warns
+        )
+
+    async def log_unwarn(self, member: discord.Member, warn_id: int, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('moderation_log_channel_id'),
+            self.log_config.get('unwarn_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            staffer=staffer,
+            warn_id=warn_id
+        )
+
+    async def log_clearwarns(self, member: discord.Member, count: int, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('moderation_log_channel_id'),
+            self.log_config.get('clearwarns_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            staffer=staffer,
+            count=count
+        )
+
+    async def log_ticket_open(self, member: discord.Member, name: str, category: str):
+        await self._send_log_embed(
+            self.log_config.get('ticket_log_channel_id'),
+            self.log_config.get('ticket_open_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            name=name,
+            category=category
+        )
+
+    async def log_ticket_close(self, channel_name: str, opener: str, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('ticket_log_channel_id'),
+            self.log_config.get('ticket_close_message', {}),
+            name=channel_name,
+            opener=opener,
+            staffer=staffer,
+            id='N/A'
+        )
+
+    async def log_ticket_rename(self, new_name: str, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('ticket_log_channel_id'),
+            self.log_config.get('ticket_rename_message', {}),
+            new_name=new_name,
+            staffer=staffer,
+            id='N/A'
+        )
+
+    async def log_ticket_add(self, member: discord.Member, name: str, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('ticket_log_channel_id'),
+            self.log_config.get('ticket_add_message', {}),
+            member=member.mention,
+            name=name,
+            staffer=staffer,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count
+        )
+
+    async def log_ticket_remove(self, member: discord.Member, name: str, staffer: str):
+        await self._send_log_embed(
+            self.log_config.get('ticket_log_channel_id'),
+            self.log_config.get('ticket_remove_message', {}),
+            member=member.mention,
+            name=name,
+            staffer=staffer,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count
+        )
+
+    async def log_autorole_add(self, member: discord.Member, role: discord.Role):
+        await self._send_log_embed(
+            self.log_config.get('autorole_log_channel_id'),
+            self.log_config.get('autorole_add_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            role=role.mention
+        )
+
+    async def log_autorole_remove(self, member: discord.Member, role: discord.Role):
+        await self._send_log_embed(
+            self.log_config.get('autorole_log_channel_id'),
+            self.log_config.get('autorole_remove_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            role=role.mention
+        )
+
+    async def log_automod_mute(self, member: discord.Member, duration: str, reason: str):
+        await self._send_log_embed(
+            self.log_config.get('automod_log_channel_id'),
+            self.log_config.get('automod_mute_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            duration=duration,
+            reason=reason
+        )
+
+    async def log_automod_warn(self, member: discord.Member, word: str):
+        await self._send_log_embed(
+            self.log_config.get('automod_log_channel_id'),
+            self.log_config.get('automod_warn_message', {}),
+            mention=member.mention,
+            id=member.id,
+            avatar=member.display_avatar.url,
+            author_name=member.display_name,
+            author_icon=member.display_avatar.url,
+            total_members=member.guild.member_count,
+            word=word
+        )
 
 async def setup(bot):
     await bot.add_cog(LogCog(bot))

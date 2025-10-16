@@ -209,3 +209,4 @@ marimo/_lsp/
 __marimo__/
 closed_tickets.json
 ticket.json
+todo.md

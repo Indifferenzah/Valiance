@@ -77,6 +77,9 @@ class AutoRoleCog(commands.Cog):
             try:
                 await member.add_roles(role)
                 logger.info(f'Ruolo {role.name} assegnato a {member.name}#{member.discriminator} ({member.id})')
+                log_cog = self.bot.get_cog('LogCog')
+                if log_cog:
+                    await log_cog.log_autorole_add(member, role)
             except Exception as e:
                 logger.error(f'Errore nell\'assegnazione del ruolo {role.name} a {member.name}#{member.discriminator} ({member.id}): {e}')
 
@@ -103,6 +106,9 @@ class AutoRoleCog(commands.Cog):
             try:
                 await member.remove_roles(role)
                 logger.info(f'Ruolo {role.name} rimosso da {member.name}#{member.discriminator} ({member.id})')
+                log_cog = self.bot.get_cog('LogCog')
+                if log_cog:
+                    await log_cog.log_autorole_remove(member, role)
             except Exception as e:
                 logger.error(f'Errore nella rimozione del ruolo {role.name} da {member.name}#{member.discriminator} ({member.id}): {e}')
 

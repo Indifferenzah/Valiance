@@ -297,6 +297,10 @@ class ModerationCog(commands.Cog):
 
         await self.send_dm(member, "warn", reason=reason, staffer=str(ctx.author), time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), total_warns=total_warns)
 
+        log_cog = self.bot.get_cog('LogCog')
+        if log_cog:
+            await log_cog.log_warn(member, reason, str(ctx.author), total_warns)
+
         if total_warns >= 3:
             try:
                 await member.timeout(datetime.timedelta(days=7), reason="3 warn")
@@ -681,6 +685,9 @@ class ListBanView(discord.ui.View):
                                 await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata ripetuta.')
                                 await self.send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata ripetuta: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
                                 logger.warning(f'Auto-mute ripetuto: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per {duration} - parola: {word}')
+                                log_cog = self.bot.get_cog('LogCog')
+                                if log_cog:
+                                    await log_cog.log_automod_mute(message.author, duration, f'Auto-mute per parola vietata ripetuta: {word}')
                             else:
                                 await self.send_dm(message.author, "word_warning", word=word)
                                 if user_id_str not in self.user_words:
@@ -688,6 +695,9 @@ class ListBanView(discord.ui.View):
                                 self.user_words[user_id_str].append(word.lower())
                                 await message.channel.send(f'{message.author.mention} ha ricevuto un avviso per una parola vietata. Non ripeterla!')
                                 logger.info(f'Avviso parola vietata: {message.author.name}#{message.author.discriminator} ({message.author.id}) - parola: {word}')
+                                log_cog = self.bot.get_cog('LogCog')
+                                if log_cog:
+                                    await log_cog.log_automod_warn(message.author, word)
                         except Exception as e:
                             logger.error(f'Errore nell\'automod parola vietata: {e}')
                         self.save_user_words()
@@ -703,6 +713,9 @@ class ListBanView(discord.ui.View):
                 await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per 1 giorno a causa di un link invito Discord.')
                 await self.send_dm(message.author, "mute", reason="Spam Link", staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration="1d")
                 logger.warning(f'Auto-mute link Discord: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per 1 giorno')
+                log_cog = self.bot.get_cog('LogCog')
+                if log_cog:
+                    await log_cog.log_automod_mute(message.author, "1d", "Spam Link")
             except Exception as e:
                 logger.error(f'Errore nell\'automod link Discord: {e}')
             return

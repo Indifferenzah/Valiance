@@ -16,5 +16,179 @@
         "footer": "ID: {id} | {total_members} membri",
         "thumbnail": "{avatar}",
         "author_header": true
+    },
+    "moderation_log_channel_id": "1351184266284896347",
+    "ban_message": {
+        "title": "Ban",
+        "description": "{mention} è stato bannato.\n**Motivo:** {reason}\n**Staffer:** {staffer}",
+        "color": 16711680,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "unban_message": {
+        "title": "Unban",
+        "description": "{mention} è stato unbannato.\n**Staffer:** {staffer}",
+        "color": 65280,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "kick_message": {
+        "title": "Kick",
+        "description": "{mention} è stato kickato.\n**Motivo:** {reason}\n**Staffer:** {staffer}",
+        "color": 16225061,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "mute_message": {
+        "title": "Mute",
+        "description": "{mention} è stato mutato per {duration}.\n**Motivo:** {reason}\n**Staffer:** {staffer}",
+        "color": 16225061,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "unmute_message": {
+        "title": "Unmute",
+        "description": "{mention} è stato smutato.\n**Staffer:** {staffer}",
+        "color": 65280,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "warn_message": {
+        "title": "Warn",
+        "description": "{mention} ha ricevuto un warn.\n**Motivo:** {reason}\n**Staffer:** {staffer}\n**Warn totali:** {total_warns}",
+        "color": 16753920,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "unwarn_message": {
+        "title": "Unwarn",
+        "description": "Warn ID {warn_id} rimosso da {mention}.\n**Staffer:** {staffer}",
+        "color": 65280,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "clearwarns_message": {
+        "title": "Clear Warns",
+        "description": "Tutti i warn di {mention} sono stati rimossi ({count} warn).\n**Staffer:** {staffer}",
+        "color": 65280,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "nick_message": {
+        "title": "Nickname Cambiato",
+        "description": "Nickname di {mention} cambiato in {new_nick}.\n**Staffer:** {staffer}",
+        "color": 16776960,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "ticket_log_channel_id": "1350118549665873981",
+    "ticket_open_message": {
+        "title": "Ticket Aperto",
+        "description": "Ticket {name} aperto da {mention}.\n**Categoria:** {category}",
+        "color": 36665,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "ticket_close_message": {
+        "title": "Ticket Chiuso",
+        "description": "Ticket {name} chiuso da {staffer}.\n**Aperto da:** {opener}",
+        "color": 36665,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "ticket_rename_message": {
+        "title": "Ticket Rinominato",
+        "description": "Ticket rinominato in {new_name}.\n**Staffer:** {staffer}",
+        "color": 36665,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "ticket_add_message": {
+        "title": "Utente Aggiunto al Ticket",
+        "description": "{member} aggiunto al ticket {name}.\n**Staffer:** {staffer}",
+        "color": 36665,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "ticket_remove_message": {
+        "title": "Utente Rimosso dal Ticket",
+        "description": "{member} rimosso dal ticket {name}.\n**Staffer:** {staffer}",
+        "color": 36665,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "autorole_log_channel_id": "1363431774763483216",
+    "autorole_add_message": {
+        "title": "Ruolo Assegnato",
+        "description": "Ruolo {role} assegnato a {mention} tramite reazione.",
+        "color": 65280,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "autorole_remove_message": {
+        "title": "Ruolo Rimosso",
+        "description": "Ruolo {role} rimosso da {mention} tramite reazione.",
+        "color": 16711680,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "automod_log_channel_id": "1351184266284896347",
+    "automod_mute_message": {
+        "title": "Auto-Mute",
+        "description": "{mention} mutato automaticamente per {duration}.\n**Motivo:** {reason}",
+        "color": 16225061,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "automod_warn_message": {
+        "title": "Auto-Warn",
+        "description": "{mention} ha ricevuto un avviso per parola vietata: {word}",
+        "color": 16753920,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "message_log_channel_id": "1363431774763483216",
+    "message_delete_message": {
+        "title": "Messaggio Eliminato",
+        "description": "Messaggio eliminato in {channel}.\n**Contenuto:** {content}\n**Autore:** {mention}",
+        "color": 16711680,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "message_edit_message": {
+        "title": "Messaggio Modificato",
+        "description": "Messaggio modificato in {channel}.\n**Prima:** {old_content}\n**Dopo:** {new_content}\n**Autore:** {mention}",
+        "color": 16776960,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "boost_log_channel_id": "1350074011131969600",
+    "boost_message": {
+        "title": "Server Boostato",
+        "description": "{mention} ha boostato il server!",
+        "color": 15990945,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
     }
 }

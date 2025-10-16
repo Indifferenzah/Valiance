@@ -450,6 +450,10 @@ class TicketButton(discord.ui.Button):
         self.view.cog.ticket_owners[channel.id]['close_message_id'] = message.id
         self.view.cog.save_tickets()
 
+        log_cog = self.view.cog.bot.get_cog('LogCog')
+        if log_cog:
+            await log_cog.log_ticket_open(interaction.user, channel.name, self.btn_config.get('label', 'Generale'))
+
         await interaction.response.send_message(f'🎫 Ticket creato: {channel.mention}', ephemeral=True)
 
 class CloseTicketView(discord.ui.View):
@@ -569,6 +573,11 @@ class ConfirmCloseView(discord.ui.View):
                     await owner.send(embed=embed, file=discord.File(filename))
                 except discord.Forbidden:
                     pass
+
+        log_cog = self.cog.bot.get_cog('LogCog')
+        if log_cog:
+            opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
+            await log_cog.log_ticket_close(channel.name, opener, interaction.user.mention)
 
         await channel.delete()
 
