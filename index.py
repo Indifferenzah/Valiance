@@ -5,6 +5,7 @@ import json
 import asyncio
 import os
 import re
+import datetime
 from dotenv import load_dotenv
 from console_logger import logger
 
@@ -12,6 +13,16 @@ load_dotenv()
 
 with open('config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
+
+moderation_words = {}
+if os.path.exists('moderation.json'):
+    with open('moderation.json', 'r', encoding='utf-8') as f:
+        moderation_words = json.load(f)
+
+user_words = {}
+if os.path.exists('user_words.json'):
+    with open('user_words.json', 'r', encoding='utf-8') as f:
+        user_words = json.load(f)
 
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -33,6 +44,7 @@ from moderation import ModerationCog
 from log import LogCog
 from autorole import AutoRoleCog
 from embed_creator import EmbedCreatorView
+from bot_utils import is_owner
 
 active_sessions = {}
 
@@ -363,6 +375,94 @@ async def on_message(message):
                 await message.add_reaction(emoji)
             except Exception as e:
                 logger.error(f'Errore nell\'aggiungere reazione {emoji}: {e}')
+
+    staff_role_id = config.get('moderation', {}).get('staff_role_id')
+    if staff_role_id and any(role.id == int(staff_role_id) for role in message.author.roles):
+        pass
+    else:
+        no_automod = config.get('moderation', {}).get('no_automod')
+        exempt_ids = []
+        if isinstance(no_automod, list):
+            for v in no_automod:
+                try:
+                    exempt_ids.append(int(v))
+                except Exception:
+                    continue
+        else:
+            for part in str(no_automod).split(','):
+                s = part.strip()
+                if s.isdigit():
+                    exempt_ids.append(int(s))
+
+        if not exempt_ids or not any(role.id in exempt_ids for role in message.author.roles):
+            content = message.content.lower()
+            user_id_str = str(message.author.id)
+            user_words_list = user_words.get(user_id_str, [])
+
+            for duration, words in moderation_words.items():
+                if isinstance(words, list):
+                    for word in words:
+                        if word.lower() in content:
+                            if message.author.is_timed_out():
+                                continue
+
+                            if duration.endswith('h'):
+                                hours = int(duration[:-1])
+                                delta = datetime.timedelta(hours=hours)
+                            elif duration.endswith('d'):
+                                days = int(duration[:-1])
+                                delta = datetime.timedelta(days=days)
+                            elif duration.endswith('m'):
+                                minutes = int(duration[:-1])
+                                delta = datetime.timedelta(minutes=minutes)
+                            elif duration.endswith('s'):
+                                seconds = int(duration[:-1])
+                                delta = datetime.timedelta(seconds=seconds)
+                            else:
+                                delta = datetime.timedelta(days=20)
+
+                            try:
+                                await message.delete()
+                                if word.lower() in [w.lower() for w in user_words_list]:
+                                    await message.author.timeout(delta, reason=f'Auto-mute per parola vietata ripetuta: {word}')
+                                    await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per {duration} a causa di una parola vietata ripetuta.')
+                                    await send_dm(message.author, "mute", reason=f'Auto-mute per parola vietata ripetuta: {word}', staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=duration)
+                                    logger.warning(f'Auto-mute ripetuto: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per {duration} - parola: {word}')
+                                    log_cog = bot.get_cog('LogCog')
+                                    if log_cog:
+                                        await log_cog.log_automod_mute(message.author, duration, f'Auto-mute per parola vietata ripetuta: {word}')
+                                else:
+                                    await send_dm(message.author, "word_warning", word=word)
+                                    if user_id_str not in user_words:
+                                        user_words[user_id_str] = []
+                                    user_words[user_id_str].append(word.lower())
+                                    await message.channel.send(f'{message.author.mention} ha ricevuto un avviso per una parola vietata. Non ripeterla!')
+                                    logger.info(f'Avviso parola vietata: {message.author.name}#{message.author.discriminator} ({message.author.id}) - parola: {word}')
+                                    log_cog = bot.get_cog('LogCog')
+                                    if log_cog:
+                                        await log_cog.log_automod_warn(message.author, word)
+                            except Exception as e:
+                                logger.error(f'Errore nell\'automod parola vietata: {e}')
+                            user_words[user_id_str] = user_words_list
+                            with open('user_words.json', 'w') as f:
+                                json.dump(user_words, f, indent=2)
+                            break
+
+            if 'discord.gg' in content:
+                if message.author.is_timed_out():
+                    pass
+                else:
+                    try:
+                        await message.delete()
+                        await message.author.timeout(datetime.timedelta(days=1), reason="Spam Link")
+                        await message.channel.send(f'{message.author.mention} è stato mutato automaticamente per 1 giorno a causa di un link invito Discord.')
+                        await send_dm(message.author, "mute", reason="Spam Link", staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration="1d")
+                        logger.warning(f'Auto-mute link Discord: {message.author.name}#{message.author.discriminator} ({message.author.id}) mutato per 1 giorno')
+                        log_cog = bot.get_cog('LogCog')
+                        if log_cog:
+                            await log_cog.log_automod_mute(message.author, "1d", "Spam Link")
+                    except Exception as e:
+                        logger.error(f'Errore nell\'automod link Discord: {e}')
 
     guild = message.guild
     if not guild or guild.id not in active_sessions:
