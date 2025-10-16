@@ -111,7 +111,7 @@ class LogCog(commands.Cog):
                 embed.set_thumbnail(url=thumb)
             if cfg.get('author_header'):
                 try:
-                    embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
+                    embed.set_author(name=member.name, icon_url=member.display_avatar.url)
                 except Exception:
                     pass
             if cfg.get('footer'):
@@ -162,7 +162,7 @@ class LogCog(commands.Cog):
                 embed.set_thumbnail(url=thumb)
             if cfg.get('author_header'):
                 try:
-                    embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
+                    embed.set_author(name=member.name, icon_url=member.display_avatar.url)
                 except Exception:
                     pass
             if cfg.get('footer'):
@@ -198,7 +198,7 @@ class LogCog(commands.Cog):
                 mention=user.mention,
                 id=user.id,
                 avatar=user.display_avatar.url,
-                author_name=user.display_name,
+                author_name=user.name,
                 author_icon=user.display_avatar.url,
                 total_members=guild.member_count,
                 staffer=staffer,
@@ -223,7 +223,7 @@ class LogCog(commands.Cog):
                 mention=user.mention,
                 id=user.id,
                 avatar=user.display_avatar.url,
-                author_name=user.display_name,
+                author_name=user.name,
                 author_icon=user.display_avatar.url,
                 total_members=guild.member_count,
                 staffer=staffer
@@ -256,7 +256,7 @@ class LogCog(commands.Cog):
                         mention=after.mention,
                         id=after.id,
                         avatar=after.display_avatar.url,
-                        author_name=after.display_name,
+                        author_name=after.name,
                         author_icon=after.display_avatar.url,
                         total_members=after.guild.member_count,
                         staffer=staffer,
@@ -277,7 +277,7 @@ class LogCog(commands.Cog):
                         mention=after.mention,
                         id=after.id,
                         avatar=after.display_avatar.url,
-                        author_name=after.display_name,
+                        author_name=after.name,
                         author_icon=after.display_avatar.url,
                         total_members=after.guild.member_count,
                         staffer=staffer
@@ -298,7 +298,7 @@ class LogCog(commands.Cog):
                     mention=after.mention,
                     id=after.id,
                     avatar=after.display_avatar.url,
-                    author_name=after.display_name,
+                    author_name=after.name,
                     author_icon=after.display_avatar.url,
                     total_members=after.guild.member_count,
                     staffer=staffer,
@@ -311,7 +311,7 @@ class LogCog(commands.Cog):
                     mention=after.mention,
                     id=after.id,
                     avatar=after.display_avatar.url,
-                    author_name=after.display_name,
+                    author_name=after.name,
                     author_icon=after.display_avatar.url,
                     total_members=after.guild.member_count
                 )
@@ -330,7 +330,7 @@ class LogCog(commands.Cog):
                 mention=message.author.mention,
                 id=message.author.id,
                 avatar=message.author.display_avatar.url,
-                author_name=message.author.display_name,
+                author_name=message.author.name,
                 author_icon=message.author.display_avatar.url,
                 total_members=message.guild.member_count,
                 channel=message.channel.mention,
@@ -352,7 +352,7 @@ class LogCog(commands.Cog):
                 mention=before.author.mention,
                 id=before.author.id,
                 avatar=before.author.display_avatar.url,
-                author_name=before.author.display_name,
+                author_name=before.author.name,
                 author_icon=before.author.display_avatar.url,
                 total_members=before.guild.member_count,
                 channel=before.channel.mention,
@@ -369,7 +369,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             staffer=staffer,
@@ -384,7 +384,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             staffer=staffer,
@@ -398,7 +398,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             staffer=staffer,
@@ -412,7 +412,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             name=name,
@@ -447,7 +447,7 @@ class LogCog(commands.Cog):
             staffer=staffer,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count
         )
@@ -461,7 +461,7 @@ class LogCog(commands.Cog):
             staffer=staffer,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count
         )
@@ -473,7 +473,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             role=role.mention
@@ -486,7 +486,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             role=role.mention
@@ -499,7 +499,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             duration=duration,
@@ -513,7 +513,7 @@ class LogCog(commands.Cog):
             mention=member.mention,
             id=member.id,
             avatar=member.display_avatar.url,
-            author_name=member.display_name,
+            author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
             word=word
