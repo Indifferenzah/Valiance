@@ -1071,6 +1071,21 @@ async def slash_dellogs(interaction: discord.Interaction):
     await interaction.response.send_message('🗑️ Seleziona un file di log da eliminare:', view=view, ephemeral=True)
     logger.info(f'Comando /dellogs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
+@bot.tree.command(name='reloadlog', description='Ricarica la configurazione log.json senza riavviare il bot (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_reloadlog(interaction: discord.Interaction):
+    try:
+        log_cog = bot.get_cog('LogCog')
+        if log_cog:
+            log_cog.reload_config()
+            await interaction.response.send_message('✅ Configurazione log ricaricata con successo!', ephemeral=True)
+            logger.info(f'Configurazione log ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        else:
+            await interaction.response.send_message('❌ Cog Log non trovato.', ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione log: {e}', ephemeral=True)
+        logger.error(f'Errore reloadlog da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
 @bot.tree.command(name='setlogchannel', description='Imposta i canali di log per ogni tipo di evento (solo admin)')
 @app_commands.describe(
     channel_id='ID del canale di log (se non specificato, usa questo canale per tutti)',

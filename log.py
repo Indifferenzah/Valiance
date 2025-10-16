@@ -21,6 +21,14 @@ class LogCog(commands.Cog):
                 except Exception:
                     self.log_config = {}
 
+    def reload_config(self):
+        if os.path.exists('log.json'):
+            with open('log.json', 'r', encoding='utf-8') as f:
+                try:
+                    self.log_config = json.load(f)
+                except Exception:
+                    self.log_config = {}
+
     def _format_datetime(self, dt: datetime):
         if not dt:
             return 'Unknown'
