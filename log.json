@@ -18,8 +18,8 @@
         "author_header": true
     },
     "role_change_message": {
-        "title": "Ruolo Modificato",
-        "description": "Ruolo {action} a {mention} da {staffer}.\nRuolo: {role}",
+        "title": "Ruoli Modificati",
+        "description": "Ruoli modificati per {mention} da {staffer}.\n**Ruoli aggiunti:** {added_roles}\n**Ruoli rimossi:** {removed_roles}",
         "color": 16776960,
         "footer": "ID: {id} | {total_members} membri",
         "thumbnail": "{avatar}",
