@@ -185,7 +185,7 @@
     "message_edit_message": {
         "title": "Messaggio Modificato",
         "description": "Messaggio modificato in {channel}.\n**Prima:** {old_content}\n**Dopo:** {new_content}\n**Autore:** {mention}",
-        "color": 16776960,
+        "color": 65280,
         "footer": "Valiance | Logging",
         "thumbnail": "{avatar}",
         "author_header": true

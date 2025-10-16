@@ -243,34 +243,26 @@ class LogCog(commands.Cog):
                     staffer = 'Sistema'
 
                 # Get changed permissions
-                added_perms = {}
-                removed_perms = {}
+                added_perms = []
+                removed_perms = []
                 for target, after_overwrite in after.overwrites.items():
                     before_overwrite = before.overwrites.get(target)
                     if before_overwrite:
                         for perm, value in after_overwrite:
                             if perm not in before_overwrite or before_overwrite[perm] != value:
                                 if value is True:
-                                    if target not in added_perms:
-                                        added_perms[target] = []
-                                    added_perms[target].append(perm.replace('_', ' '))
+                                    added_perms.append(f"{perm} per {target}")
                                 elif value is False:
-                                    if target not in removed_perms:
-                                        removed_perms[target] = []
-                                    removed_perms[target].append(perm.replace('_', ' '))
+                                    removed_perms.append(f"{perm} per {target}")
                     else:
                         for perm, value in after_overwrite:
                             if value is True:
-                                if target not in added_perms:
-                                    added_perms[target] = []
-                                added_perms[target].append(perm.replace('_', ' '))
+                                added_perms.append(f"{perm} per {target}")
                             elif value is False:
-                                if target not in removed_perms:
-                                    removed_perms[target] = []
-                                removed_perms[target].append(perm.replace('_', ' '))
+                                removed_perms.append(f"{perm} per {target}")
 
-                added_str = '\n'.join([f"**{target}:** {', '.join(perms)}" for target, perms in added_perms.items()]) if added_perms else 'Nessuno'
-                removed_str = '\n'.join([f"**{target}:** {', '.join(perms)}" for target, perms in removed_perms.items()]) if removed_perms else 'Nessuno'
+                added_str = ', '.join(added_perms) if added_perms else 'Nessuno'
+                removed_str = ', '.join(removed_perms) if removed_perms else 'Nessuno'
 
                 await self._send_log_embed(
                     self.log_config.get('moderation_log_channel_id'),
