@@ -62,6 +62,7 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
+    bot.start_time = discord.utils.utcnow()
     logger.info(f'Bot connesso come {bot.user}')
     try:
         synced = await bot.tree.sync()
@@ -893,6 +894,20 @@ async def slash_ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
     logger.info(f'Comando /ping usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Latenza: {round(bot.latency * 1000)}ms')
 
+@bot.tree.command(name='uptime', description='Mostra da quanto tempo il bot è online')
+async def slash_uptime(interaction: discord.Interaction):
+    from datetime import datetime, timezone
+    uptime = datetime.now(timezone.utc) - bot.start_time if hasattr(bot, 'start_time') else None
+    if uptime:
+        days = uptime.days
+        hours, remainder = divmod(uptime.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
+    else:
+        uptime_str = "N/A"
+    await interaction.response.send_message(f"**⏱️ Uptime**: {uptime_str}", ephemeral=True)
+    logger.info(f'Comando /uptime usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Uptime: {uptime_str}')
+
 @bot.tree.command(name='help', description='Mostra una lista di tutti i comandi slash disponibili')
 async def slash_help(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -915,7 +930,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🔧 Utilità',
-        value='`/ping` - Mostra latenza bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter',
+        value='`/ping` - Mostra latenza bot\n`/uptime` - Mostra uptime bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter',
         inline=False
     )
 
