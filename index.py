@@ -32,6 +32,7 @@ from ticket import TicketCog, TicketView, CloseTicketView
 from moderation import ModerationCog
 from log import LogCog
 from autorole import AutoRoleCog
+from embed_creator import EmbedCreatorView
 
 active_sessions = {}
 
@@ -908,6 +909,16 @@ async def slash_uptime(interaction: discord.Interaction):
     await interaction.response.send_message(f"**⏱️ Uptime**: {uptime_str}", ephemeral=True)
     logger.info(f'Comando /uptime usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Uptime: {uptime_str}')
 
+@bot.tree.command(name='embed', description='Crea e modifica un embed in tempo reale (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_embed(interaction: discord.Interaction):
+    embed = discord.Embed(title='Embed Creator', description='Usa il menu sottostante per modificare l\'embed.', color=0x00ff00)
+    embed.set_footer(text='Valiance Bot - Embed Creator')
+
+    view = EmbedCreatorView(embed, interaction.user.id)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    logger.info(f'Comando /embed usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
 @bot.tree.command(name='help', description='Mostra una lista di tutti i comandi slash disponibili')
 async def slash_help(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -930,7 +941,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🔧 Utilità',
-        value='`/ping` - Mostra latenza bot\n`/uptime` - Mostra uptime bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter',
+        value='`/ping` - Mostra latenza bot\n`/uptime` - Mostra uptime bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter\n`/embed` - Crea embed personalizzato',
         inline=False
     )
 
