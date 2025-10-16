@@ -110,7 +110,7 @@
     "ticket_close_message": {
         "title": "Ticket Chiuso",
         "description": "Ticket {name} chiuso da {staffer}.\n**Aperto da:** {opener}",
-        "color": 36665,
+        "color": 16711680,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
@@ -118,7 +118,7 @@
     "ticket_rename_message": {
         "title": "Ticket Rinominato",
         "description": "Ticket rinominato in {new_name}.\n**Staffer:** {staffer}",
-        "color": 36665,
+        "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
@@ -126,7 +126,7 @@
     "ticket_add_message": {
         "title": "Utente Aggiunto al Ticket",
         "description": "{member} aggiunto al ticket {name}.\n**Staffer:** {staffer}",
-        "color": 36665,
+        "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
@@ -134,7 +134,7 @@
     "ticket_remove_message": {
         "title": "Utente Rimosso dal Ticket",
         "description": "{member} rimosso dal ticket {name}.\n**Staffer:** {staffer}",
-        "color": 36665,
+        "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
