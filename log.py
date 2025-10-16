@@ -304,6 +304,86 @@ class LogCog(commands.Cog):
                     staffer=staffer,
                     new_nick=new_nick
                 )
+            elif before.roles != after.roles:
+                added_roles = [role for role in after.roles if role not in before.roles]
+                removed_roles = [role for role in before.roles if role not in after.roles]
+
+                for role in added_roles:
+                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_role_update, limit=5):
+                        if entry.target.id == after.id and any(r.id == role.id for r in entry.after.roles if r not in entry.before.roles):
+                            staffer = entry.user.mention if entry.user else 'Sistema'
+                            break
+                    else:
+                        staffer = 'Sistema'
+
+                    await self._send_log_embed(
+                        self.log_config.get('moderation_log_channel_id'),
+                        self.log_config.get('role_change_message', {}),
+                        mention=after.mention,
+                        id=after.id,
+                        avatar=after.display_avatar.url,
+                        author_name=after.name,
+                        author_icon=after.display_avatar.url,
+                        total_members=after.guild.member_count,
+                        action='aggiunto',
+                        role=role.name,
+                        staffer=staffer
+                    )
+
+                for role in removed_roles:
+                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_role_update, limit=5):
+                        if entry.target.id == after.id and any(r.id == role.id for r in entry.before.roles if r not in entry.after.roles):
+                            staffer = entry.user.mention if entry.user else 'Sistema'
+                            break
+                    else:
+                        staffer = 'Sistema'
+
+                    await self._send_log_embed(
+                        self.log_config.get('moderation_log_channel_id'),
+                        self.log_config.get('role_change_message', {}),
+                        mention=after.mention,
+                        id=after.id,
+                        avatar=after.display_avatar.url,
+                        author_name=after.name,
+                        author_icon=after.display_avatar.url,
+                        total_members=after.guild.member_count,
+                        action='rimosso',
+                        role=role.name,
+                        staffer=staffer
+                    )
+            elif before.premium_since != after.premium_since and after.premium_since is not None:
+                await self._send_log_embed(
+                    self.log_config.get('boost_log_channel_id'),
+                    self.log_config.get('boost_message', {}),
+                    mention=after.mention,
+                    id=after.id,
+                    avatar=after.display_avatar.url,
+                    author_name=after.name,
+                    author_icon=after.display_avatar.url,
+                    total_members=after.guild.member_count
+                )
+            elif before.nick != after.nick:
+                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
+                    if entry.target.id == after.id and (entry.before.nick != entry.after.nick):
+                        staffer = entry.user.mention if entry.user else 'Sistema'
+                        new_nick = entry.after.nick or 'Resettato'
+                        break
+                else:
+                    staffer = 'Sistema'
+                    new_nick = after.nick or 'Resettato'
+
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('nick_message', {}),
+                    mention=after.mention,
+                    id=after.id,
+                    avatar=after.display_avatar.url,
+                    author_name=after.name,
+                    author_icon=after.display_avatar.url,
+                    total_members=after.guild.member_count,
+                    staffer=staffer,
+                    new_nick=new_nick
+                )
             elif before.premium_since != after.premium_since and after.premium_since is not None:
                 await self._send_log_embed(
                     self.log_config.get('boost_log_channel_id'),

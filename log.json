@@ -17,6 +17,14 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
+    "role_change_message": {
+        "title": "Ruolo Modificato",
+        "description": "Ruolo {action} a {mention} da {staffer}.\nRuolo: {role}",
+        "color": 16776960,
+        "footer": "ID: {id} | {total_members} membri",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
     "moderation_log_channel_id": "1351184266284896347",
     "ban_message": {
         "title": "Ban",
