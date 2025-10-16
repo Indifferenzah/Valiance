@@ -242,7 +242,6 @@ class LogCog(commands.Cog):
                 else:
                     staffer = 'Sistema'
 
-                # Get changed permissions
                 added_perms = []
                 removed_perms = []
                 for target, after_overwrite in after.overwrites.items():
@@ -288,7 +287,6 @@ class LogCog(commands.Cog):
                 else:
                     staffer = 'Sistema'
 
-                # Get changed permissions
                 added_perms = []
                 removed_perms = []
                 for perm in discord.Permissions.VALID_FLAGS:

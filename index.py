@@ -953,7 +953,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='⚙️ Logs',
-        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log',
+        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log',
         inline=False
     )
 
@@ -1070,6 +1070,93 @@ async def slash_dellogs(interaction: discord.Interaction):
     view = LogSelectView(log_files, action='delete')
     await interaction.response.send_message('🗑️ Seleziona un file di log da eliminare:', view=view, ephemeral=True)
     logger.info(f'Comando /dellogs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
+@bot.tree.command(name='setlogchannel', description='Imposta i canali di log per ogni tipo di evento (solo admin)')
+@app_commands.describe(
+    channel_id='ID del canale di log (se non specificato, usa questo canale per tutti)',
+    join_leave='Canale per join/leave',
+    moderation='Canale per moderazione (ban, kick, mute, etc.)',
+    ticket='Canale per ticket',
+    autorole='Canale per autorole',
+    automod='Canale per automod',
+    message='Canale per messaggi (delete/edit)',
+    boost='Canale per boost server'
+)
+@owner_or_has_permissions(administrator=True)
+async def slash_setlogchannel(
+    interaction: discord.Interaction,
+    channel_id: str = None,
+    join_leave: str = None,
+    moderation: str = None,
+    ticket: str = None,
+    autorole: str = None,
+    automod: str = None,
+    message: str = None,
+    boost: str = None
+):
+    try:
+        if os.path.exists('log.json'):
+            with open('log.json', 'r', encoding='utf-8') as f:
+                log_config = json.load(f)
+        else:
+            log_config = {}
+
+        default_channel = channel_id or str(interaction.channel.id)
+
+        channel_map = {
+            'join_leave': ('join_log_channel_id', 'leave_log_channel_id'),
+            'moderation': ('moderation_log_channel_id',),
+            'ticket': ('ticket_log_channel_id',),
+            'autorole': ('autorole_log_channel_id',),
+            'automod': ('automod_log_channel_id',),
+            'message': ('message_log_channel_id',),
+            'boost': ('boost_log_channel_id',)
+        }
+
+        params = {
+            'join_leave': join_leave,
+            'moderation': moderation,
+            'ticket': ticket,
+            'autorole': autorole,
+            'automod': automod,
+            'message': message,
+            'boost': boost
+        }
+
+        updated_channels = []
+
+        if not any(params.values()):
+            for param, fields in channel_map.items():
+                for field in fields:
+                    log_config[field] = default_channel
+                updated_channels.append(f"{param}: {default_channel}")
+        else:
+            for param, value in params.items():
+                if value:
+                    for field in channel_map[param]:
+                        log_config[field] = value
+                    updated_channels.append(f"{param}: {value}")
+
+        with open('log.json', 'w', encoding='utf-8') as f:
+            json.dump(log_config, f, indent=2, ensure_ascii=False)
+
+        embed = discord.Embed(
+            title='✅ Canali Log Aggiornati',
+            description='I canali di log sono stati configurati con successo:',
+            color=0x00ff00
+        )
+
+        for update in updated_channels:
+            embed.add_field(name='📝', value=update, inline=False)
+
+        embed.set_footer(text='Valiance Bot | Logging System')
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        logger.info(f'Canali log aggiornati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {", ".join(updated_channels)}')
+
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nell\'impostazione dei canali log: {e}', ephemeral=True)
+        logger.error(f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
