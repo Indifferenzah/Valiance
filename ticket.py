@@ -200,6 +200,10 @@ class TicketCog(commands.Cog):
                 await interaction.response.send_message(embed=e, ephemeral=False)
             else:
                 await interaction.response.send_message('✅ Canale rinominato!', ephemeral=False)
+
+            log_cog = self.bot.get_cog('LogCog')
+            if log_cog:
+                await log_cog.log_ticket_rename(new_name, interaction.user.mention)
         except discord.Forbidden:
             await interaction.response.send_message('❌ Non ho i permessi per rinominare il canale!', ephemeral=True)
         except Exception as e:
