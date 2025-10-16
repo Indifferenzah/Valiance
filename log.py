@@ -232,6 +232,99 @@ class LogCog(commands.Cog):
             logger.error(f'Errore in on_member_unban: {e}')
 
     @commands.Cog.listener()
+    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+        try:
+            if before.overwrites != after.overwrites:
+                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.channel_update, limit=5):
+                    if entry.target.id == after.id:
+                        staffer = entry.user.mention if entry.user else 'Sistema'
+                        break
+                else:
+                    staffer = 'Sistema'
+
+                # Get changed permissions
+                added_perms = {}
+                removed_perms = {}
+                for target, after_overwrite in after.overwrites.items():
+                    before_overwrite = before.overwrites.get(target)
+                    if before_overwrite:
+                        for perm, value in after_overwrite:
+                            if perm not in before_overwrite or before_overwrite[perm] != value:
+                                if value is True:
+                                    if target not in added_perms:
+                                        added_perms[target] = []
+                                    added_perms[target].append(perm.replace('_', ' '))
+                                elif value is False:
+                                    if target not in removed_perms:
+                                        removed_perms[target] = []
+                                    removed_perms[target].append(perm.replace('_', ' '))
+                    else:
+                        for perm, value in after_overwrite:
+                            if value is True:
+                                if target not in added_perms:
+                                    added_perms[target] = []
+                                added_perms[target].append(perm.replace('_', ' '))
+                            elif value is False:
+                                if target not in removed_perms:
+                                    removed_perms[target] = []
+                                removed_perms[target].append(perm.replace('_', ' '))
+
+                added_str = '\n'.join([f"**{target}:** {', '.join(perms)}" for target, perms in added_perms.items()]) if added_perms else 'Nessuno'
+                removed_str = '\n'.join([f"**{target}:** {', '.join(perms)}" for target, perms in removed_perms.items()]) if removed_perms else 'Nessuno'
+
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('channel_permission_update_message', {}),
+                    channel=after.mention,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    added_perms=added_str,
+                    removed_perms=removed_str
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_channel_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
+        try:
+            if before.permissions != after.permissions:
+                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.role_update, limit=5):
+                    if entry.target.id == after.id:
+                        staffer = entry.user.mention if entry.user else 'Sistema'
+                        break
+                else:
+                    staffer = 'Sistema'
+
+                # Get changed permissions
+                added_perms = []
+                removed_perms = []
+                for perm in discord.Permissions.VALID_FLAGS:
+                    before_value = getattr(before.permissions, perm, False)
+                    after_value = getattr(after.permissions, perm, False)
+                    if before_value != after_value:
+                        if after_value:
+                            added_perms.append(perm.replace('_', ' '))
+                        else:
+                            removed_perms.append(perm.replace('_', ' '))
+
+                added_str = ', '.join(added_perms) if added_perms else 'Nessuno'
+                removed_str = ', '.join(removed_perms) if removed_perms else 'Nessuno'
+
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('role_permission_update_message', {}),
+                    role=after.mention,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    added_perms=added_str,
+                    removed_perms=removed_str
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_role_update: {e}')
+
+    @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
         try:
             if before.is_timed_out() != after.is_timed_out():

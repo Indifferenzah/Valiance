@@ -198,5 +198,21 @@
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
+    },
+    "channel_permission_update_message": {
+        "title": "Permessi Canale Aggiornati",
+        "description": "I permessi del canale {channel} sono stati aggiornati da {staffer}.\n**Permessi aggiunti:** {added_perms}\n**Permessi rimossi:** {removed_perms}",
+        "color": 16776960,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "role_permission_update_message": {
+        "title": "Permessi Ruolo Aggiornati",
+        "description": "I permessi del ruolo {role} sono stati aggiornati da {staffer}.\n**Permessi aggiunti:** {added_perms}\n**Permessi rimossi:** {removed_perms}",
+        "color": 16776960,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
     }
 }
