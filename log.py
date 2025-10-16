@@ -407,8 +407,8 @@ class LogCog(commands.Cog):
                     else:
                         staffer = 'Sistema'
 
-                    added_str = ', '.join([r.name for r in added_roles]) if added_roles else 'Nessuno'
-                    removed_str = ', '.join([r.name for r in removed_roles]) if removed_roles else 'Nessuno'
+                    added_str = ', '.join([r.mention for r in added_roles]) if added_roles else 'Nessuno'
+                    removed_str = ', '.join([r.mention for r in removed_roles]) if removed_roles else 'Nessuno'
 
                     await self._send_log_embed(
                         self.log_config.get('moderation_log_channel_id'),
@@ -581,11 +581,13 @@ class LogCog(commands.Cog):
             id='N/A'
         )
 
-    async def log_ticket_rename(self, new_name: str, staffer: str):
+    async def log_ticket_rename(self, channel_mention: str, new_name: str, number: str, staffer: str):
         await self._send_log_embed(
             self.log_config.get('ticket_log_channel_id'),
             self.log_config.get('ticket_rename_message', {}),
+            channel=channel_mention,
             new_name=new_name,
+            number=number,
             staffer=staffer,
             id='N/A'
         )

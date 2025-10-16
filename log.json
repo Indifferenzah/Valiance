@@ -117,7 +117,7 @@
     },
     "ticket_rename_message": {
         "title": "Ticket Rinominato",
-        "description": "Ticket rinominato in {new_name}.\n**Staffer:** {staffer}",
+        "description": "{channel} rinominato in {new_name}.\n**Numero:** {number}\n**Staffer:** {staffer}",
         "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
