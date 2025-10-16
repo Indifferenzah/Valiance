@@ -13,6 +13,12 @@ class EmbedCreatorView(discord.ui.View):
         self.fields = []
         self.target_channel = None
 
+    def get_current_embed(self):
+        embed = self.embed.copy()
+        for name, value, inline in self.fields:
+            embed.add_field(name=name, value=value, inline=inline)
+        return embed
+
     @discord.ui.select(
         placeholder="Seleziona cosa modificare",
         options=[
@@ -115,13 +121,13 @@ class EmbedModal(discord.ui.Modal):
             elif self.field_type == "image":
                 self.view.embed.set_image(url=value)
             elif self.field_type == "footer":
-                self.view.embed.set_footer(text=value)
+                self.view.embed.set_footer(text=value, icon_url=self.view.embed.footer.icon_url if self.view.embed.footer else None)
             elif self.field_type == "content":
                 self.view.message_content = value
             else:
                 setattr(self.view.embed, self.field_type, value)
 
-            await interaction.response.edit_message(embed=self.view.embed, view=self.view)
+            await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
         except Exception as e:
             await interaction.response.send_message(f"❌ Errore nella modifica: {e}", ephemeral=True)
 
@@ -169,7 +175,7 @@ class FieldModal(discord.ui.Modal):
         for n, v, i in self.view.fields:
             embed.add_field(name=n, value=v, inline=i)
 
-        await interaction.response.edit_message(embed=embed, view=self.view)
+        await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
 
 class ChannelModal(discord.ui.Modal):
     def __init__(self, view):
