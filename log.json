@@ -98,7 +98,7 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
-    "ticket_log_channel_id": "1351184266284896347",
+    "ticket_log_channel_id": "1428469262284230688",
     "ticket_open_message": {
         "title": "Ticket Aperto",
         "description": "Ticket {name} aperto da {mention}.\n**Categoria:** {category}",
