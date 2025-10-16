@@ -953,7 +953,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='⚙️ Logs',
-        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log',
+        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log\n`/reloadlog` - Ricarica i file di log',
         inline=False
     )
 
