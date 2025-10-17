@@ -1297,6 +1297,7 @@ async def slash_setlogchannel(
         logger.error(f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
 @bot.tree.command(name="regole", description="Invia l'embed con le regole nel canale configurato")
+@owner_or_has_permissions(administrator=True)
 async def regole(interaction: discord.Interaction):
     rules_channel_id = config.get("rules_channel_id")
     rules_channel = interaction.guild.get_channel(rules_channel_id)
