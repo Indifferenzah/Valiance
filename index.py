@@ -65,11 +65,40 @@ async def on_command_error(ctx, error):
 async def on_ready():
     bot.start_time = discord.utils.utcnow()
 
+    # Imposta stato e attività dal config.json
+    status = config.get('bot_status', 'dnd')
+    activity_type = config.get('bot_activity_type', 'watching')
+    activity_name = config.get('bot_activity_name', '{membri} membri')
+
+    if status == 'online':
+        status_enum = discord.Status.online
+    elif status == 'idle':
+        status_enum = discord.Status.idle
+    elif status == 'dnd':
+        status_enum = discord.Status.dnd
+    elif status == 'invisible':
+        status_enum = discord.Status.invisible
+    else:
+        status_enum = discord.Status.dnd
+
+    # Sostituisci {membri} con il numero totale di membri
     membri = sum(g.member_count for g in bot.guilds)
-    await bot.change_presence(
-        status=discord.Status.dnd,
-        activity=discord.Activity(type=discord.ActivityType.watching, name=f"{membri} membri")
-    )
+    activity_name = activity_name.replace('{membri}', str(membri))
+
+    if activity_type == 'playing':
+        activity = discord.Game(name=activity_name)
+    elif activity_type == 'streaming':
+        activity = discord.Streaming(name=activity_name, url=config.get('bot_activity_url', ''))
+    elif activity_type == 'listening':
+        activity = discord.Activity(type=discord.ActivityType.listening, name=activity_name)
+    elif activity_type == 'watching':
+        activity = discord.Activity(type=discord.ActivityType.watching, name=activity_name)
+    elif activity_type == 'competing':
+        activity = discord.Activity(type=discord.ActivityType.competing, name=activity_name)
+    else:
+        activity = discord.Activity(type=discord.ActivityType.watching, name=activity_name)
+
+    await bot.change_presence(status=status_enum, activity=activity)
 
     logger.info(f'Bot connesso come {bot.user}')
     try:

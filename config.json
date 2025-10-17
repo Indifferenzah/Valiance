@@ -97,5 +97,9 @@
     "v!",
     "!"
   ],
-  "ticket_counter": 1
+  "ticket_counter": 1,
+  "bot_status": "online",
+  "bot_activity_type": "watching",
+  "bot_activity_name": "{membri} membri",
+  "bot_activity_url": ""
 }
