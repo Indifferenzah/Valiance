@@ -64,6 +64,13 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_ready():
     bot.start_time = discord.utils.utcnow()
+
+    membri = sum(g.member_count for g in bot.guilds)
+    await bot.change_presence(
+        status=discord.Status.dnd,
+        activity=discord.Activity(type=discord.ActivityType.watching, name=f"{membri} membri")
+    )
+
     logger.info(f'Bot connesso come {bot.user}')
     try:
         synced = await bot.tree.sync()
