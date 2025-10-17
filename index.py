@@ -1086,6 +1086,30 @@ async def slash_reloadlog(interaction: discord.Interaction):
         await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione log: {e}', ephemeral=True)
         logger.error(f'Errore reloadlog da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
+def reload_global_config():
+    global config
+    with open('config.json', 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    moderation_cog = bot.get_cog('ModerationCog')
+    if moderation_cog:
+        moderation_cog.reload_config()
+
+    log_cog = bot.get_cog('LogCog')
+    if log_cog:
+        log_cog.reload_config()
+
+@bot.tree.command(name='reloadconfig', description='Ricarica la configurazione config.json senza riavviare il bot (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_reloadconfig(interaction: discord.Interaction):
+    try:
+        reload_global_config()
+        await interaction.response.send_message('✅ Configurazione globale ricaricata con successo!', ephemeral=True)
+        logger.info(f'Configurazione globale ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione globale: {e}', ephemeral=True)
+        logger.error(f'Errore reloadconfig da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
 @bot.tree.command(name='setlogchannel', description='Imposta i canali di log per ogni tipo di evento (solo admin)')
 @app_commands.describe(
     channel_id='ID del canale di log (se non specificato, usa questo canale per tutti)',

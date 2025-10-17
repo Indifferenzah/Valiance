@@ -5,7 +5,7 @@ import os
 import datetime
 import re
 from discord import app_commands
-from bot_utils import is_owner
+from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
 from console_logger import logger
 
 class ModerationCog(commands.Cog):
@@ -34,6 +34,16 @@ class ModerationCog(commands.Cog):
     def save_user_words(self):
         with open('user_words.json', 'w') as f:
             json.dump(self.user_words, f, indent=2)
+
+    def reload_mod(self):
+        with open('moderation.json', 'r', encoding='utf-8') as f:
+            self.moderation_words = json.load(f)
+        with open('config.json', 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
+
+    def reload_config(self):
+        with open('config.json', 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
 
     def get_user_warns(self, user_id):
         return [w for w in self.warns_data["warns"].values() if w["user_id"] == str(user_id)]
@@ -687,6 +697,15 @@ class ModerationCog(commands.Cog):
                 await interaction.response.send_message(f'✅ Nickname di {member.mention} cambiato in "{nickname}".', ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore nel cambiare nickname: {e}', ephemeral=True)
+
+    @app_commands.command(name='reloadmod', description='Ricarica la configurazione moderation.json senza riavviare il bot (solo admin)')
+    @owner_or_has_permissions(administrator=True)
+    async def slash_reloadmod(self, interaction: discord.Interaction):
+        try:
+            self.reload_mod()
+            await interaction.response.send_message('✅ Configurazione moderation ricaricata con successo!', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione moderation: {e}', ephemeral=True)
 
 class ListBanView(discord.ui.View):
     def __init__(self, bans, current_page=0):
