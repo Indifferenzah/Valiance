@@ -65,7 +65,6 @@ async def on_command_error(ctx, error):
 async def on_ready():
     bot.start_time = discord.utils.utcnow()
 
-    # Imposta stato e attività dal config.json
     status = config.get('bot_status', 'dnd')
     activity_type = config.get('bot_activity_type', 'watching')
     activity_name = config.get('bot_activity_name', '{membri} membri')
@@ -81,7 +80,6 @@ async def on_ready():
     else:
         status_enum = discord.Status.dnd
 
-    # Sostituisci {membri} con il numero totale di membri
     membri = sum(g.member_count for g in bot.guilds)
     activity_name = activity_name.replace('{membri}', str(membri))
 
