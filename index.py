@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import json
 import asyncio
@@ -53,6 +53,11 @@ class GameSession:
         self.green_voice = None
         self.tagged_users = []
         self.is_active = False
+
+@tasks.loop(minutes=5)
+async def status_loop():
+    membri = sum(g.member_count for g in bot.guilds)
+    await bot.change_presence(status=discord.Status.dnd, activity=discord.Activity(type=discord.ActivityType.watching, name=f"{membri} membri"))
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -221,6 +226,8 @@ async def on_ready():
                 logger.info('Ticket panel view re-attached')
             except Exception as e:
                 logger.error(f'Errore nel ricaricare il pannello ticket: {e}')
+
+    status_loop.start()
 
 @bot.event
 async def on_member_remove(member):
