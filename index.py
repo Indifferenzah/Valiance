@@ -959,7 +959,7 @@ async def slash_help(interaction: discord.Interaction):
 
     embed.add_field(
         name='🔄 Reload',
-        value='`/reloadlog` - Ricarica config di log\n`/reloadticket` - Ricarica config di ticket\n`/reloadmod` - Ricarica config di moderazione\n`/reloadconfig` - Ricarica config generale',
+        value='`/reloadlog` - Ricarica config di log\n`/reloadticket` - Ricarica config di ticket\n`/reloadmod` - Ricarica config di moderazione\n`/reloadconfig` - Ricarica config generale\n`/reloadall` - Ricarica tutte le configurazioni',
         inline=False
     )
 
@@ -1115,6 +1115,34 @@ async def slash_reloadconfig(interaction: discord.Interaction):
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione globale: {e}', ephemeral=True)
         logger.error(f'Errore reloadconfig da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
+def reload_all():
+    global config
+    with open('config.json', 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    moderation_cog = bot.get_cog('ModerationCog')
+    if moderation_cog:
+        moderation_cog.reload_mod()
+
+    ticket_cog = bot.get_cog('TicketCog')
+    if ticket_cog:
+        ticket_cog.reload_ticket()
+
+    log_cog = bot.get_cog('LogCog')
+    if log_cog:
+        log_cog.reload_config()
+
+@bot.tree.command(name='reloadall', description='Ricarica tutte le configurazioni (config.json, moderation.json, ticketmsg.json, log.json) senza riavviare il bot (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_reloadall(interaction: discord.Interaction):
+    try:
+        reload_all()
+        await interaction.response.send_message('✅ Tutte le configurazioni ricaricate con successo!', ephemeral=True)
+        logger.info(f'Tutte le configurazioni ricaricate da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    except Exception as e:
+        await interaction.response.send_message(f'❌ Errore nel ricaricare tutte le configurazioni: {e}', ephemeral=True)
+        logger.error(f'Errore reloadall da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
 @bot.tree.command(name='setlogchannel', description='Imposta i canali di log per ogni tipo di evento (solo admin)')
 @app_commands.describe(
