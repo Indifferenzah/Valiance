@@ -1015,6 +1015,12 @@ async def slash_help(interaction: discord.Interaction):
     )
 
     embed.add_field(
+        name='🎲 Fun',
+        value='`/coinflip` - Lancia una moneta\n`/roll` - Tira un dado\n`/avatar` - Mostra l\'avatar di un utente\n`/userinfo` - Mostra informazioni su un utente\n`/serverinfo` - Mostra informazioni sul server',
+        inline=False
+    )
+
+    embed.add_field(
         name='⚙️ Logs',
         value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log',
         inline=False
