@@ -193,6 +193,16 @@ async def on_ready():
             logger.error(f'Log cog non aggiunto: {e}')
     else:
         logger.warning('Log cog già caricato')
+    
+        fun_cog = bot.get_cog('FunCog')
+    if fun_cog is None:
+        try:
+            await bot.add_cog(FunCog(bot))
+            logger.info('Fun cog aggiunto')
+        except Exception as e:
+            logger.error(f'Fun cog non aggiunto: {e}')
+    else:
+        logger.warning('Fun cog già caricato')
 
     autorole_cog = bot.get_cog('AutoRoleCog')
     if autorole_cog is None:
