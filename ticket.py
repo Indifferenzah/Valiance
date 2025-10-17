@@ -196,7 +196,8 @@ class TicketCog(commands.Cog):
             await channel.edit(name=new_name)
             tpl = self.ticket_messages.get('rename')
             if tpl:
-                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', new_name).replace('{author}', interaction.user.mention), color=tpl.get('color', 0x00ff00))
+                ticket_number = self.ticket_owners.get(channel.id, {}).get('number', 'N/A')
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{name}', new_name).replace('{author}', interaction.user.mention).replace('{channel}', channel.mention).replace('{number}', str(ticket_number)), color=tpl.get('color', 0x00ff00))
                 if tpl.get('thumbnail'):
                     e.set_thumbnail(url=tpl.get('thumbnail'))
                 try:
@@ -255,7 +256,8 @@ class TicketCog(commands.Cog):
             await interaction.channel.edit(overwrites=overwrites)
 
             if tpl:
-                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0x00ff00))
+                ticket_number = self.ticket_owners.get(interaction.channel.id, {}).get('number', 'N/A')
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention).replace('{channel}', interaction.channel.mention).replace('{number}', str(ticket_number)), color=tpl.get('color', 0x00ff00))
                 if tpl.get('thumbnail'):
                     e.set_thumbnail(url=tpl.get('thumbnail'))
                 try:
@@ -267,6 +269,11 @@ class TicketCog(commands.Cog):
                 await interaction.response.send_message(embed=e, ephemeral=False)
             else:
                 await interaction.response.send_message(f'✅ {member.mention} aggiunto!', ephemeral=False)
+
+            log_cog = self.bot.get_cog('LogCog')
+            if log_cog:
+                ticket_number = self.ticket_owners.get(interaction.channel.id, {}).get('number', 'N/A')
+                await log_cog.log_ticket_add(member, interaction.channel.mention, str(ticket_number), interaction.user.mention)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
 
@@ -307,7 +314,8 @@ class TicketCog(commands.Cog):
             await interaction.channel.edit(overwrites=overwrites)
 
             if tpl:
-                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention), color=tpl.get('color', 0xff0000))
+                ticket_number = self.ticket_owners.get(interaction.channel.id, {}).get('number', 'N/A')
+                e = discord.Embed(title=tpl.get('title'), description=tpl.get('description', '').replace('{member}', member.mention).replace('{author}', interaction.user.mention).replace('{channel}', interaction.channel.mention).replace('{number}', str(ticket_number)), color=tpl.get('color', 0xff0000))
                 if tpl.get('thumbnail'):
                     e.set_thumbnail(url=tpl.get('thumbnail'))
                 try:
@@ -319,6 +327,11 @@ class TicketCog(commands.Cog):
                 await interaction.response.send_message(embed=e, ephemeral=False)
             else:
                 await interaction.response.send_message(f'✅ {member.mention} rimosso!', ephemeral=False)
+
+            log_cog = self.bot.get_cog('LogCog')
+            if log_cog:
+                ticket_number = self.ticket_owners.get(interaction.channel.id, {}).get('number', 'N/A')
+                await log_cog.log_ticket_remove(member, interaction.channel.mention, str(ticket_number), interaction.user.mention)
         except Exception as e:
             await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
 
@@ -474,7 +487,7 @@ class TicketButton(discord.ui.Button):
 
         log_cog = self.view.cog.bot.get_cog('LogCog')
         if log_cog:
-            await log_cog.log_ticket_open(interaction.user, channel.name, self.btn_config.get('label', 'Generale'))
+            await log_cog.log_ticket_open(interaction.user, channel.mention, str(ticket_number), self.btn_config.get('label', 'Generale'))
 
         await interaction.response.send_message(f'🎫 Ticket creato: {channel.mention}', ephemeral=True)
 
@@ -575,10 +588,10 @@ class ConfirmCloseView(discord.ui.View):
         staffer = interaction.user.mention
         name = channel.name
 
-        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
-        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id)
+        embed.title = embed.title.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id).replace('{channel}', channel.mention).replace('{number}', str(ticket_number))
+        embed.description = embed.description.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id).replace('{channel}', channel.mention).replace('{number}', str(ticket_number))
         if embed.footer:
-            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id))
+            embed.set_footer(text=embed.footer.text.replace('{opener}', opener).replace('{staffer}', staffer).replace('{name}', name).replace('{id}', button_id).replace('{channel}', channel.mention).replace('{number}', str(ticket_number)))
 
         transcript_channel_id = self.cog.config.get('ticket_transcript_channel_id')
         if transcript_channel_id:
@@ -599,7 +612,7 @@ class ConfirmCloseView(discord.ui.View):
         log_cog = self.cog.bot.get_cog('LogCog')
         if log_cog:
             opener = self.cog.bot.get_user(owner_id).mention if owner_id and self.cog.bot.get_user(owner_id) else 'Unknown'
-            await log_cog.log_ticket_close(channel.name, opener, interaction.user.mention)
+            await log_cog.log_ticket_close(channel.name, opener, interaction.user.mention, str(ticket_number))
 
         await channel.delete()
 

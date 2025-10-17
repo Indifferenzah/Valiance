@@ -557,7 +557,7 @@ class LogCog(commands.Cog):
             count=count
         )
 
-    async def log_ticket_open(self, member: discord.Member, name: str, category: str):
+    async def log_ticket_open(self, member: discord.Member, channel: str, number: str, category: str):
         await self._send_log_embed(
             self.log_config.get('ticket_log_channel_id'),
             self.log_config.get('ticket_open_message', {}),
@@ -567,17 +567,19 @@ class LogCog(commands.Cog):
             author_name=member.name,
             author_icon=member.display_avatar.url,
             total_members=member.guild.member_count,
-            name=name,
+            channel=channel,
+            number=number,
             category=category
         )
 
-    async def log_ticket_close(self, channel_name: str, opener: str, staffer: str):
+    async def log_ticket_close(self, channel_name: str, opener: str, staffer: str, number: str):
         await self._send_log_embed(
             self.log_config.get('ticket_log_channel_id'),
             self.log_config.get('ticket_close_message', {}),
             name=channel_name,
             opener=opener,
             staffer=staffer,
+            number=number,
             id='N/A'
         )
 
@@ -592,12 +594,13 @@ class LogCog(commands.Cog):
             id='N/A'
         )
 
-    async def log_ticket_add(self, member: discord.Member, name: str, staffer: str):
+    async def log_ticket_add(self, member: discord.Member, channel: str, number: str, staffer: str):
         await self._send_log_embed(
             self.log_config.get('ticket_log_channel_id'),
             self.log_config.get('ticket_add_message', {}),
             member=member.mention,
-            name=name,
+            channel=channel,
+            number=number,
             staffer=staffer,
             id=member.id,
             avatar=member.display_avatar.url,
@@ -606,12 +609,13 @@ class LogCog(commands.Cog):
             total_members=member.guild.member_count
         )
 
-    async def log_ticket_remove(self, member: discord.Member, name: str, staffer: str):
+    async def log_ticket_remove(self, member: discord.Member, channel: str, number: str, staffer: str):
         await self._send_log_embed(
             self.log_config.get('ticket_log_channel_id'),
             self.log_config.get('ticket_remove_message', {}),
             member=member.mention,
-            name=name,
+            channel=channel,
+            number=number,
             staffer=staffer,
             id=member.id,
             avatar=member.display_avatar.url,
