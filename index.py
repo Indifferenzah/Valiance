@@ -67,6 +67,7 @@ async def on_command_error(ctx, error):
     else:
         pass
 
+@tasks.loop(minutes=5)
 @bot.event
 async def on_ready():
     bot.start_time = discord.utils.utcnow()
