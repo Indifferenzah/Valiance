@@ -1296,9 +1296,9 @@ async def slash_setlogchannel(
         await interaction.response.send_message(f'❌ Errore nell\'impostazione dei canali log: {e}', ephemeral=True)
         logger.error(f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
-@app_commands.command(name="regole", description="Invia l'embed con le regole nel canale configurato")
-async def regole(self, interaction: discord.Interaction):
-    rules_channel_id = self.config.get("rules_channel_id")
+@bot.tree.command(name="regole", description="Invia l'embed con le regole nel canale configurato")
+async def regole(interaction: discord.Interaction):
+    rules_channel_id = config.get("rules_channel_id")
     rules_channel = interaction.guild.get_channel(rules_channel_id)
 
     if not rules_channel:
@@ -1311,7 +1311,7 @@ async def regole(self, interaction: discord.Interaction):
     embed = discord.Embed(
         title="Regolamento <a:VL_GreenFireCrown:1426683267825795192>",
         description="Leggi attentamente le regole per mantenere un ambiente sicuro e piacevole per tutti, e evitare una sanzione inaspettata!",
-        color=discord.Color.gold()
+        color=discord.Color.green()
     )
 
     embed.add_field(name="<:1_:1428842925265125558> Rispetto", value="Tratta tutti con rispetto. Niente insulti, discriminazioni o molestie.", inline=False)
