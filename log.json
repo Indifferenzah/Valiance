@@ -25,7 +25,7 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
-    "moderation_log_channel_id": "1351184266284896347",
+    "moderation_log_channel_id": "1428464022835036210",
     "ban_message": {
         "title": "Ban",
         "description": "{mention} è stato bannato.\n**Motivo:** {reason}\n**Staffer:** {staffer}",
@@ -101,7 +101,7 @@
     "ticket_log_channel_id": "1428469262284230688",
     "ticket_open_message": {
         "title": "Ticket Aperto",
-        "description": "Ticket {name} aperto da {mention}.\n**Categoria:** {category}",
+        "description": "Ticket {channel} aperto da {mention}.\n**Numero:** {number}\n**Categoria:** {category}",
         "color": 36665,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
@@ -109,7 +109,7 @@
     },
     "ticket_close_message": {
         "title": "Ticket Chiuso",
-        "description": "Ticket {name} chiuso da {staffer}.\n**Aperto da:** {opener}",
+        "description": "Ticket {channel} chiuso da {staffer}.\n**Numero:** {number}\n**Aperto da:** {opener}",
         "color": 16711680,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
@@ -125,7 +125,7 @@
     },
     "ticket_add_message": {
         "title": "Utente Aggiunto al Ticket",
-        "description": "{member} aggiunto al ticket {name}.\n**Staffer:** {staffer}",
+        "description": "{member} aggiunto a {channel}.\n**Numero:** {number}\n**Staffer:** {staffer}",
         "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
@@ -133,13 +133,13 @@
     },
     "ticket_remove_message": {
         "title": "Utente Rimosso dal Ticket",
-        "description": "{member} rimosso dal ticket {name}.\n**Staffer:** {staffer}",
+        "description": "{member} rimosso da {channel}.\n**Numero:** {number}\n**Staffer:** {staffer}",
         "color": 16753920,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
     },
-    "autorole_log_channel_id": "1351184266284896347",
+    "autorole_log_channel_id": "1428464022835036210",
     "autorole_add_message": {
         "title": "Ruolo Assegnato",
         "description": "Ruolo {role} assegnato a {mention} tramite reazione.",
@@ -156,7 +156,7 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
-    "automod_log_channel_id": "1351184266284896347",
+    "automod_log_channel_id": "1428464022835036210",
     "automod_mute_message": {
         "title": "Auto-Mute",
         "description": "{mention} mutato automaticamente per {duration}.\n**Motivo:** {reason}",
@@ -173,7 +173,7 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
-    "message_log_channel_id": "1351184266284896347",
+    "message_log_channel_id": "1428464022835036210",
     "message_delete_message": {
         "title": "Messaggio Eliminato",
         "description": "Messaggio eliminato in {channel}.\n**Contenuto:** {content}\n**Autore:** {mention}",
@@ -190,7 +190,7 @@
         "thumbnail": "{avatar}",
         "author_header": true
     },
-    "boost_log_channel_id": "1351184266284896347",
+    "boost_log_channel_id": "1428464022835036210",
     "boost_message": {
         "title": "Server Boostato",
         "description": "{mention} ha boostato il server!",

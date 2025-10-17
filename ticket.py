@@ -7,7 +7,7 @@ from datetime import datetime
 from discord import InteractionType
 import asyncio
 from discord import app_commands
-from bot_utils import is_owner
+from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
 from console_logger import logger
 
 class TicketCog(commands.Cog):
@@ -42,6 +42,14 @@ class TicketCog(commands.Cog):
     def save_tickets(self):
         with open('ticket.json', 'w') as f:
             json.dump(self.ticket_owners, f)
+
+    def reload_ticket(self):
+        if os.path.exists('ticketmsg.json'):
+            with open('ticketmsg.json', 'r', encoding='utf-8') as f:
+                try:
+                    self.ticket_messages = json.load(f)
+                except Exception:
+                    self.ticket_messages = {}
 
     async def _delete_message_later(self, message: discord.Message, delay: int = 3):
         try:
@@ -383,6 +391,15 @@ class TicketCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+
+    @app_commands.command(name='reloadticket', description='Ricarica la configurazione ticketmsg.json senza riavviare il bot (solo admin)')
+    @owner_or_has_permissions(administrator=True)
+    async def slash_reloadticket(self, interaction: discord.Interaction):
+        try:
+            self.reload_ticket()
+            await interaction.response.send_message('✅ Configurazione ticket ricaricata con successo!', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione ticket: {e}', ephemeral=True)
 
 
 
