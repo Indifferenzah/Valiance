@@ -80,7 +80,18 @@ async def on_ready():
     else:
         status_enum = discord.Status.dnd
 
-    membri = sum(g.member_count for g in bot.guilds)
+    bot_activity_guild_id = config.get('bot_activity_guild_id')
+    if bot_activity_guild_id:
+        try:
+            specific_guild = bot.get_guild(int(bot_activity_guild_id))
+            if specific_guild:
+                membri = specific_guild.member_count
+            else:
+                membri = sum(g.member_count for g in bot.guilds)
+        except ValueError:
+            membri = sum(g.member_count for g in bot.guilds)
+    else:
+        membri = sum(g.member_count for g in bot.guilds)
     activity_name = activity_name.replace('{membri}', str(membri))
 
     if activity_type == 'playing':
