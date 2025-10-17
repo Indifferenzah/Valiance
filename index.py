@@ -34,6 +34,7 @@ from log import LogCog
 from autorole import AutoRoleCog
 from embed_creator import EmbedCreatorView
 from fun import FunCog
+from regole import RulesCog
 
 active_sessions = {}
 
@@ -1296,36 +1297,7 @@ async def slash_setlogchannel(
         await interaction.response.send_message(f'❌ Errore nell\'impostazione dei canali log: {e}', ephemeral=True)
         logger.error(f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
-@bot.tree.command(name="regole", description="Invia l'embed con le regole nel canale configurato")
-@owner_or_has_permissions(administrator=True)
-async def regole(interaction: discord.Interaction):
-    rules_channel_id = config.get("rules_channel_id")
-    rules_channel = interaction.guild.get_channel(rules_channel_id)
 
-    if not rules_channel:
-        await interaction.response.send_message(
-            "❌ Errore: canale 'rules' non trovato o ID non valido in config.json.",
-            ephemeral=True
-        )
-        return
-
-    embed = discord.Embed(
-        title="Regolamento <a:VL_GreenFireCrown:1426683267825795192>",
-        description="Leggi attentamente le regole per mantenere un ambiente sicuro e piacevole per tutti, e evitare una sanzione inaspettata!",
-        color=discord.Color.green()
-    )
-
-    embed.add_field(name="<:1_:1428842925265125558> Rispetto", value="Tratta tutti con rispetto. Niente insulti, discriminazioni o molestie.", inline=False)
-    embed.add_field(name="<:2_:1428842939131494520> Niente spam", value="Evita messaggi ripetuti, emoji in eccesso o tag inutili.", inline=False)
-    embed.add_field(name="<:3_:1428842930306551818> Contenuti appropriati", value="Vietati contenuti NSFW, gore o illegali.", inline=False)
-    embed.add_field(name="<:4_:1428842935973052477> Canali giusti", value="Scrivi nei canali corretti e rispetta il tema di ciascuno.", inline=False)
-    embed.add_field(name="<:5_:1428842927383384174> No pubblicità", value="Non condividere link, server o social senza permesso dello staff.", inline=False)
-    embed.add_field(name="<:6_:1428842941786620007> Sicurezza", value="Non condividere dati personali e segnala qualsiasi comportamento sospetto.", inline=False)
-    embed.add_field(name="<:7_:1428842947603857449> Staff", value="Rispetta le decisioni dello staff. Se hai dubbi, apri un ticket.", inline=False)
-    embed.set_footer(text="Valiance | Regolamento")
-
-    await rules_channel.send(embed=embed)
-    await interaction.response.send_message(f"✅ Regole inviate con successo in {rules_channel.mention}!", ephemeral=True)
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -1360,7 +1332,7 @@ if __name__ == '__main__':
         import asyncio
 
         async def setup_modules():
-            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun']
+            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole']
             for modname in modules_to_setup:
                 try:
                     mod = importlib.import_module(modname)

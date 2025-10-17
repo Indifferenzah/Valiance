@@ -1,0 +1,48 @@
+{
+  "channel_id": 1411403173767418027,
+  "embed": {
+    "title": "Regolamento <a:VL_GreenFireCrown:1426683267825795192>",
+    "description": "Leggi attentamente le regole per mantenere un ambiente sicuro e piacevole per tutti, e evitare una sanzione inaspettata!",
+    "color": 5763719,
+    "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+    "footer": "Valiance | Regolamento",
+    "footer_icon": "server",
+    "fields": [
+      {
+        "name": "<:1_:1428842925265125558> Rispetto",
+        "value": "Tratta tutti con rispetto. Niente insulti, discriminazioni o molestie.",
+        "inline": false
+      },
+      {
+        "name": "<:2_:1428842939131494520> Niente spam",
+        "value": "Evita messaggi ripetuti, emoji in eccesso o tag inutili.",
+        "inline": false
+      },
+      {
+        "name": "<:3_:1428842930306551818> Contenuti appropriati",
+        "value": "Vietati contenuti NSFW, gore o illegali.",
+        "inline": false
+      },
+      {
+        "name": "<:4_:1428842935973052477> Canali giusti",
+        "value": "Scrivi nei canali corretti e rispetta il tema di ciascuno.",
+        "inline": false
+      },
+      {
+        "name": "<:5_:1428842927383384174> No pubblicità",
+        "value": "Non condividere link, server o social senza permesso dello staff.",
+        "inline": false
+      },
+      {
+        "name": "<:6_:1428842941786620007> Sicurezza",
+        "value": "Non condividere dati personali e segnala qualsiasi comportamento sospetto.",
+        "inline": false
+      },
+      {
+        "name": "<:7_:1428842947603857449> Staff",
+        "value": "Rispetta le decisioni dello staff. Se hai dubbi, apri un ticket.",
+        "inline": false
+      }
+    ]
+  }
+}
