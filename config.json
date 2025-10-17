@@ -102,5 +102,6 @@
   "bot_activity_type": "watching",
   "bot_activity_name": "{membri} membri",
   "bot_activity_guild_id": "",
-  "bot_activity_url": ""
+  "bot_activity_url": "",
+  "rules_channel_id": 1411403173767418027
 }
