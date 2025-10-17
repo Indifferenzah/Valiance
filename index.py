@@ -1133,7 +1133,7 @@ def reload_all():
     if log_cog:
         log_cog.reload_config()
 
-@bot.tree.command(name='reloadall', description='Ricarica tutte le configurazioni (config.json, moderation.json, ticketmsg.json, log.json) senza riavviare il bot (solo admin)')
+@bot.tree.command(name='reloadall', description='Ricarica tutte le configurazioni senza riavviare il bot (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_reloadall(interaction: discord.Interaction):
     try:
