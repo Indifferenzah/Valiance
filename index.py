@@ -55,11 +55,6 @@ class GameSession:
         self.tagged_users = []
         self.is_active = False
 
-@tasks.loop(minutes=5)
-async def status_loop():
-    membri = sum(g.member_count for g in bot.guilds)
-    await bot.change_presence(status=discord.Status.dnd, activity=discord.Activity(type=discord.ActivityType.watching, name=f"{membri} membri"))
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -68,10 +63,7 @@ async def on_command_error(ctx, error):
         pass
 
 @tasks.loop(minutes=5)
-@bot.event
-async def on_ready():
-    bot.start_time = discord.utils.utcnow()
-
+async def status_loop():
     status = config.get('bot_status', 'dnd')
     activity_type = config.get('bot_activity_type', 'watching')
     activity_name = config.get('bot_activity_name', '{membri} membri')
@@ -116,6 +108,10 @@ async def on_ready():
 
     await bot.change_presence(status=status_enum, activity=activity)
 
+@bot.event
+async def on_ready():
+    bot.start_time = discord.utils.utcnow()
+
     logger.info(f'Bot connesso come {bot.user}')
     try:
         synced = await bot.tree.sync()
@@ -142,6 +138,7 @@ async def on_ready():
                     del config['active_counters'][guild_id_str]
                 with open('config.json', 'w', encoding='utf-8') as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
+    status_loop.start()
 
     global counter_task
     if counter_channels and (counter_task is None or counter_task.done()):
@@ -238,8 +235,6 @@ async def on_ready():
                 logger.info('Ticket panel view re-attached')
             except Exception as e:
                 logger.error(f'Errore nel ricaricare il pannello ticket: {e}')
-
-    status_loop.start()
 
 @bot.event
 async def on_member_remove(member):
