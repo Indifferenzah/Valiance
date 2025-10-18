@@ -1019,6 +1019,12 @@ async def slash_help(interaction: discord.Interaction):
     )
 
     embed.add_field(
+        name='📝 TTS',
+        value='`/say` - Usa TTS\n`/voice` - Imposta voce\n`/volume` - Cambia volume\n`/stop` - Ferma TTS',
+        inline=False
+    )
+
+    embed.add_field(
         name='⚙️ Logs',
         value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log',
         inline=False

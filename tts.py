@@ -1,136 +1,214 @@
-import discord
-from discord.ext import commands
-import json
 import asyncio
-import pyttsx3
+import io
+import os
+from collections import deque
+from typing import List
+import random
+import requests
+import discord
+from discord.ext import commands, tasks
 from discord import app_commands
-from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
-from console_logger import logger
+from loguru import logger
+from dotenv import load_dotenv
+import json
+import ffmpeg
+
+load_dotenv()
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+
+class VoiceManager:
+    """Manages voice-related operations."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.voice_cache = []
+        self.user_voices = {}
+        self.session = requests.Session()
+
+    def fetch_voices(self):
+        url = "https://api.elevenlabs.io/v1/voices"
+        headers = {
+            "xi-api-key": self.api_key,
+            "Content-Type": "application/json"
+        }
+        response = self.session.get(url, headers=headers)
+        response.raise_for_status()
+        self.voice_cache = response.json().get('voices', [])
+
+    def find_voice_by_name(self, name: str):
+        return next((voice for voice in self.voice_cache if voice["name"] == name), None)
+
+    def fetch_audio_stream(self, text: str, voice_id: str):
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+        params = {
+            "optimize_streaming_latency": 1
+        }
+        payload = {
+            "model_id": "eleven_multilingual_v2",
+            "text": text,
+            "voice_settings": {
+                "stability": 1,
+                "similarity_boost": 0.8,
+                "style": 0.5,
+                "use_speaker_boost": True
+            }
+        }
+        headers = {
+            "xi-api-key": ELEVENLABS_API_KEY,
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = self.session.post(url, params=params, headers=headers, json=payload, stream=True)
+            response.raise_for_status()
+            return io.BytesIO(response.content)
+        except requests.RequestException as e:
+            logger.error(f"Error fetching audio stream: {e}")
+            return None
+
 
 class TTSCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.voice_manager = VoiceManager(api_key=ELEVENLABS_API_KEY)
+        self.audio_queue = deque()
         self.tts_config = {}
         self.load_config()
-        self.engine = pyttsx3.init()
-        self.is_speaking = False
+        # Fetch voices immediately on startup
+        try:
+            self.voice_manager.fetch_voices()
+            logger.info(f"Voice cache initialized with {len(self.voice_manager.voice_cache)} voices")
+        except Exception as e:
+            logger.error(f"Failed to fetch voices on startup: {e}")
+        self.update_voice_cache.start()
 
     def load_config(self):
         try:
             with open('tts.json', 'r', encoding='utf-8') as f:
                 self.tts_config = json.load(f)
         except FileNotFoundError:
-            self.tts_config = {"channel_id": None, "lang": "ita", "voice": "maschio"}
-            self.save_config()
+            self.tts_config = {"channel_id": None, "lang": "ita", "voice": "maschio", "xsaid": False}
+            with open('tts.json', 'w', encoding='utf-8') as f:
+                json.dump(self.tts_config, f, indent=2, ensure_ascii=False)
 
-    def save_config(self):
-        with open('tts.json', 'w', encoding='utf-8') as f:
-            json.dump(self.tts_config, f, indent=2, ensure_ascii=False)
-
-    async def speak(self, text, voice_channel):
-        if self.is_speaking:
-            return
-
-        self.is_speaking = True
+    @tasks.loop(minutes=2)
+    async def update_voice_cache(self):
         try:
-            voices = self.engine.getProperty('voices')
-            if self.tts_config.get('voice') == 'maschio':
-                for voice in voices:
-                    if 'male' in voice.name.lower() or 'italian' in voice.name.lower():
-                        self.engine.setProperty('voice', voice.id)
-                        break
-            else:
-                for voice in voices:
-                    if 'female' in voice.name.lower() or 'italian' in voice.name.lower():
-                        self.engine.setProperty('voice', voice.id)
-                        break
+            self.voice_manager.fetch_voices()
+        except requests.RequestException as e:
+            logger.error(f"Error updating voice cache: {e}")
 
-            self.engine.setProperty('rate', 150)
-            self.engine.save_to_file(text, 'tts_output.wav')
-            self.engine.runAndWait()
-
-            vc = await voice_channel.connect()
-            vc.play(discord.FFmpegPCMAudio('tts_output.wav'), after=lambda e: asyncio.run_coroutine_threadsafe(self.cleanup_vc(vc), self.bot.loop))
-        except Exception as e:
-            logger.error(f'Errore TTS: {e}')
-        finally:
-            self.is_speaking = False
-
-    async def cleanup_vc(self, vc):
-        await vc.disconnect()
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.author.bot:
-            return
-
-        channel_id = self.tts_config.get('channel_id')
-        if channel_id and str(message.channel.id) == channel_id:
-            if message.author.voice and message.author.voice.channel:
-                await self.speak(message.content, message.author.voice.channel)
-
-    @app_commands.command(name='tts', description='Gestisci le impostazioni TTS')
-    async def slash_tts(self, interaction: discord.Interaction):
-        await interaction.response.send_message('❌ Usa i sottocomandi: /tts join, /tts leave, /tts channel, /tts lang, /tts voice.', ephemeral=True)
-
-    @slash_tts.subcommand(name='join', description='Unisci il canale vocale corrente come canale TTS')
-    async def tts_join(self, interaction: discord.Interaction):
-        if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message('❌ Devi essere in un canale vocale!', ephemeral=True)
-            return
-        self.tts_config['channel_id'] = str(interaction.user.voice.channel.id)
-        self.save_config()
-        await interaction.response.send_message(f'✅ TTS unito al canale {interaction.user.voice.channel.name}!', ephemeral=True)
-
-    @slash_tts.subcommand(name='leave', description='Rimuovi il canale TTS')
-    async def tts_leave(self, interaction: discord.Interaction):
-        self.tts_config['channel_id'] = None
-        self.save_config()
-        await interaction.response.send_message('✅ TTS lasciato il canale!', ephemeral=True)
-
-    @slash_tts.subcommand(name='channel', description='Imposta o mostra il canale TTS')
-    @app_commands.describe(channel_id='ID del canale testo (opzionale, mostra attuale se non specificato)')
-    async def tts_channel(self, interaction: discord.Interaction, channel_id: str = None):
-        if not channel_id:
-            current_channel = self.tts_config.get('channel_id')
-            if current_channel:
-                channel = self.bot.get_channel(int(current_channel))
-                channel_name = channel.name if channel else 'Sconosciuto'
-                await interaction.response.send_message(f'📢 Canale TTS attuale: {channel_name}', ephemeral=True)
-            else:
-                await interaction.response.send_message('❌ Nessun canale TTS impostato!', ephemeral=True)
+    def play_next_audio(self, interaction: discord.Interaction, error=None):
+        if error:
+            logger.error(f'Player error: {error}')
+        if self.audio_queue:
+            audio_stream = self.audio_queue.popleft()
+            audio_stream.seek(0)  # Ensure the stream is at the start
+            source = discord.FFmpegPCMAudio(audio_stream, pipe=True)
+            interaction.guild.voice_client.play(source, after=lambda e: self.play_next_audio(interaction, e))
         else:
-            try:
-                channel_id_int = int(channel_id)
-                channel = self.bot.get_channel(channel_id_int)
-                if not channel or not isinstance(channel, discord.TextChannel):
-                    await interaction.response.send_message('❌ Canale testo non valido!', ephemeral=True)
+            logger.info("No more audio in the queue.")
+
+    @app_commands.command(name='say', description='Plays a text-to-speech response from Eleven Labs')
+    @app_commands.describe(text='The text to be spoken')
+    async def say(self, interaction: discord.Interaction, text: str):
+        if interaction.response.is_done():
+            logger.warning(f"Interaction {interaction.id} already acknowledged")
+            return
+
+        try:
+            await interaction.response.defer(thinking=True)
+        except discord.NotFound:
+            logger.warning(f"Interaction {interaction.id} expired before defer")
+            return
+        except discord.HTTPException as e:
+            if e.code == 40060:  # Interaction already acknowledged
+                logger.warning(f"Interaction {interaction.id} already acknowledged")
+                return
+            logger.exception(f"Error deferring interaction: {e}")
+            return
+        except Exception as e:
+            logger.exception(f"Error deferring interaction: {e}")
+            return
+
+        try:
+            if len(text) > 100:
+                await interaction.followup.send(f'Max 100 chars. Your text is too long ({len(text)} chars).', ephemeral=True)
+                return
+
+            await self.ensure_voice_connection(interaction)
+            voice = self.voice_manager.user_voices.get(interaction.user.global_name, None)
+            if voice is None:
+                if not self.voice_manager.voice_cache:
+                    await interaction.followup.send("Voice cache is empty. Please try again in a moment.", ephemeral=True)
                     return
-                self.tts_config['channel_id'] = str(channel_id_int)
-                self.save_config()
-                await interaction.response.send_message(f'✅ Canale TTS impostato a {channel.name}!', ephemeral=True)
-            except ValueError:
-                await interaction.response.send_message('❌ ID canale non valido!', ephemeral=True)
+                voice = random.choice(self.voice_manager.voice_cache)
+            audio_stream = self.voice_manager.fetch_audio_stream(text, voice['voice_id'])
 
-    @slash_tts.subcommand(name='lang', description='Imposta la lingua TTS')
-    @app_commands.describe(lang='Lingua: ita o ing')
-    async def tts_lang(self, interaction: discord.Interaction, lang: str):
-        if lang not in ['ita', 'ing']:
-            await interaction.response.send_message('❌ Lingua non valida! Usa "ita" o "ing".', ephemeral=True)
-            return
-        self.tts_config['lang'] = lang
-        self.save_config()
-        await interaction.response.send_message(f'✅ Lingua TTS impostata a {lang}!', ephemeral=True)
+            if audio_stream:
+                self.audio_queue.append(audio_stream)
+                if not interaction.guild.voice_client.is_playing():
+                    self.play_next_audio(interaction)
+                await interaction.followup.send("Message queued", ephemeral=True)
+            else:
+                await interaction.followup.send("Failed to generate audio stream.", ephemeral=True)
+        except Exception as e:
+            logger.exception(e)
+            try:
+                await interaction.followup.send("An error occurred while processing your request.", ephemeral=True)
+            except:
+                pass
 
-    @slash_tts.subcommand(name='voice', description='Imposta il genere della voce TTS')
-    @app_commands.describe(voice='Genere: maschio o femmina')
-    async def tts_voice(self, interaction: discord.Interaction, voice: str):
-        if voice not in ['maschio', 'femmina']:
-            await interaction.response.send_message('❌ Voce non valida! Usa "maschio" o "femmina".', ephemeral=True)
+    async def ensure_voice_connection(self, interaction: discord.Interaction):
+        if interaction.user.voice:
+            channel = interaction.user.voice.channel
+            if interaction.guild.voice_client is None or not interaction.guild.voice_client.is_connected():
+                await channel.connect()
+            elif interaction.guild.voice_client.channel != channel:
+                await interaction.guild.voice_client.move_to(channel)
+        else:
+            await interaction.followup.send('You are not in a voice channel.', ephemeral=True)
+
+    @app_commands.command(name='voice', description="Set user's voice")
+    @app_commands.describe(voice='The voice to set')
+    async def voice(self, interaction: discord.Interaction, voice: str):
+        await interaction.response.defer()
+        global_name = str(interaction.user.global_name)
+        selected_voice = next((v for v in self.voice_manager.voice_cache if v['name'].lower() == voice.lower()), None)
+        if not selected_voice:
+            await interaction.followup.send('No voice found.', ephemeral=True)
             return
-        self.tts_config['voice'] = voice
-        self.save_config()
-        await interaction.response.send_message(f'✅ Voce TTS impostata a {voice}!', ephemeral=True)
+        self.voice_manager.user_voices[global_name] = selected_voice
+        await interaction.followup.send(f"Voice set to {selected_voice['name']}", ephemeral=True)
+
+    @voice.autocomplete('voice')
+    async def voices_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+        voices_name = [voice["name"] for voice in self.voice_manager.voice_cache if voice["category"] == "cloned"]
+
+        return [
+            app_commands.Choice(name=voice_name, value=voice_name)
+            for voice_name in voices_name if current.lower() in voice_name.lower()
+        ]
+
+    @app_commands.command(name='volume', description='Changes the bot volume')
+    @app_commands.describe(volume='The volume level (0-100)')
+    async def volume(self, interaction: discord.Interaction, volume: int):
+        if interaction.guild.voice_client is None:
+            await interaction.response.send_message("Not connected to a voice channel.")
+            return
+
+        interaction.guild.voice_client.source.volume = volume / 100
+        await interaction.response.send_message(f"Changed volume to {volume}%")
+
+    @app_commands.command(name='stop', description='Stops and disconnects the bot from voice channel')
+    async def stop(self, interaction: discord.Interaction):
+        if interaction.guild.voice_client and interaction.guild.voice_client.channel:
+            await interaction.guild.voice_client.disconnect(force=True)
+            await interaction.response.send_message("Disconnected from the voice channel.")
+        else:
+            await interaction.response.send_message("Not connected to a voice channel.")
+
 
 async def setup(bot):
     await bot.add_cog(TTSCog(bot))
