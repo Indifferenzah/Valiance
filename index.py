@@ -35,6 +35,7 @@ from autorole import AutoRoleCog
 from embed_creator import EmbedCreatorView
 from fun import FunCog
 from regole import RulesCog
+from tts import TTSCog
 
 active_sessions = {}
 
@@ -1332,7 +1333,7 @@ if __name__ == '__main__':
         import asyncio
 
         async def setup_modules():
-            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole']
+            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole', 'tts']
             for modname in modules_to_setup:
                 try:
                     mod = importlib.import_module(modname)
