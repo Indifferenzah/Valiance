@@ -7,6 +7,26 @@ from colorama import Fore, Style
 
 colorama.init(autoreset=True)
 
+TTS_LEVEL_NUM = 25  # Tra INFO (20) e WARNING (30)
+logging.addLevelName(TTS_LEVEL_NUM, "TTS")
+
+def tts(self, message, *args, **kwargs):
+    if self.isEnabledFor(TTS_LEVEL_NUM):
+        self._log(TTS_LEVEL_NUM, message, args, **kwargs)
+
+logging.Logger.tts = tts
+logging.TTS = TTS_LEVEL_NUM
+
+EXCEPTION_LEVEL_NUM = 35  # Tra INFO (20) e WARNING (30)
+logging.addLevelName(EXCEPTION_LEVEL_NUM, "EXCEPTION")
+
+def exception(self, message, *args, **kwargs):
+    if self.isEnabledFor(EXCEPTION_LEVEL_NUM):
+        self._log(EXCEPTION_LEVEL_NUM, message, args, **kwargs)
+
+logging.Logger.exception = exception
+logging.EXCEPTION = EXCEPTION_LEVEL_NUM
+
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
         if record.levelno == logging.INFO:
@@ -19,6 +39,10 @@ class ColoredFormatter(logging.Formatter):
             record.levelname = f"{Fore.BLUE}[DEBUG]{Style.RESET_ALL}"
         elif record.levelno == logging.CRITICAL:
             record.levelname = f"{Fore.RED}[FATAL]{Style.RESET_ALL}"
+        elif record.levelno == logging.TTS:
+            record.levelname = f"{Fore.CYAN}[TTS]{Style.RESET_ALL}"
+        elif record.levelno == logging.EXCEPTION:
+            record.levelname = f"{Fore.LIGHTYELLOW_EX}[EXCEPTION]{Style.RESET_ALL}"
         else:
             record.levelname = f"[{record.levelname}]"
 

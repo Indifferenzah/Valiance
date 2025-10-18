@@ -8,10 +8,11 @@ import requests
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-from loguru import logger
 from dotenv import load_dotenv
 import json
 import ffmpeg
+
+from console_logger import logger
 
 load_dotenv()
 
@@ -78,7 +79,7 @@ class TTSCog(commands.Cog):
         # Fetch voices immediately on startup
         try:
             self.voice_manager.fetch_voices()
-            logger.info(f"Voice cache initialized with {len(self.voice_manager.voice_cache)} voices")
+            logger.tts(f"Voice cache initialized with {len(self.voice_manager.voice_cache)} voices")
         except Exception as e:
             logger.error(f"Failed to fetch voices on startup: {e}")
         self.update_voice_cache.start()
@@ -108,7 +109,7 @@ class TTSCog(commands.Cog):
             source = discord.FFmpegPCMAudio(audio_stream, pipe=True)
             interaction.guild.voice_client.play(source, after=lambda e: self.play_next_audio(interaction, e))
         else:
-            logger.info("No more audio in the queue.")
+            logger.tts("No more audio in the queue.")
 
     @app_commands.command(name='say', description='Plays a text-to-speech response from Eleven Labs')
     @app_commands.describe(text='The text to be spoken')
