@@ -109,27 +109,37 @@ class EmbedModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         value = self.input.value.strip()
 
-        if value == "//":
-            await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
-            return
-
         try:
-            if self.field_type == "color":
-                if value.startswith("#"):
-                    value = int(value[1:], 16)
+            if value == "//":
+                if self.field_type == "color":
+                    self.view.embed.color = None
+                elif self.field_type == "thumbnail":
+                    self.view.embed.set_thumbnail(url=None)
+                elif self.field_type == "image":
+                    self.view.embed.set_image(url=None)
+                elif self.field_type == "footer":
+                    self.view.embed.set_footer(text=None, icon_url=None)
+                elif self.field_type == "content":
+                    self.view.message_content = ""
                 else:
-                    value = int(value)
-                self.view.embed.color = value
-            elif self.field_type == "thumbnail":
-                self.view.embed.set_thumbnail(url=value)
-            elif self.field_type == "image":
-                self.view.embed.set_image(url=value)
-            elif self.field_type == "footer":
-                self.view.embed.set_footer(text=value, icon_url=self.view.embed.footer.icon_url if self.view.embed.footer else None)
-            elif self.field_type == "content":
-                self.view.message_content = value
+                    setattr(self.view.embed, self.field_type, "")
             else:
-                setattr(self.view.embed, self.field_type, value)
+                if self.field_type == "color":
+                    if value.startswith("#"):
+                        value = int(value[1:], 16)
+                    else:
+                        value = int(value)
+                    self.view.embed.color = value
+                elif self.field_type == "thumbnail":
+                    self.view.embed.set_thumbnail(url=value)
+                elif self.field_type == "image":
+                    self.view.embed.set_image(url=value)
+                elif self.field_type == "footer":
+                    self.view.embed.set_footer(text=value, icon_url=self.view.embed.footer.icon_url if self.view.embed.footer else None)
+                elif self.field_type == "content":
+                    self.view.message_content = value
+                else:
+                    setattr(self.view.embed, self.field_type, value)
 
             await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
         except Exception as e:
@@ -178,10 +188,6 @@ class FieldModal(discord.ui.Modal):
             return
 
         self.view.fields.append((name, value, inline))
-
-        embed = self.view.embed.copy()
-        for n, v, i in self.view.fields:
-            embed.add_field(name=n, value=v, inline=i)
 
         await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
 
