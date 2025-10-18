@@ -12,7 +12,7 @@ class ColoredFormatter(logging.Formatter):
         if record.levelno == logging.INFO:
             record.levelname = f"{Fore.GREEN}[INFO]{Style.RESET_ALL}"
         elif record.levelno == logging.WARNING:
-            record.levelname = f"{Fore.YELLOW}[WARN]{Style.RESET_ALL}"
+            record.levelname = f"{Fore.YELLOW}[WARNING]{Style.RESET_ALL}"
         elif record.levelno == logging.ERROR:
             record.levelname = f"{Fore.RED}[ERROR]{Style.RESET_ALL}"
         elif record.levelno == logging.DEBUG:
@@ -32,8 +32,8 @@ def setup_logger():
     logger = logging.getLogger('valiance_bot')
     logger.setLevel(logging.DEBUG)
 
-    console_formatter = ColoredFormatter('%(asctime)s %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S]')
-    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='[%d-%m-%Y] [%H:%M:%S]')
+    console_formatter = ColoredFormatter('%(asctime)s %(levelname)s: %(message)s', datefmt='[%H:%M:%S]')
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s', datefmt='[%H:%M:%S]')
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)

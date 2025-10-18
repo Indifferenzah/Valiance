@@ -4,3 +4,4 @@ colorama
 ffmpeg-python
 requests
 loguru
+PyNaCl
