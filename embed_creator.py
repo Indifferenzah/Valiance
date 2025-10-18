@@ -109,6 +109,10 @@ class EmbedModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         value = self.input.value.strip()
 
+        if value == "//":
+            await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
+            return
+
         try:
             if self.field_type == "color":
                 if value.startswith("#"):
@@ -164,6 +168,10 @@ class FieldModal(discord.ui.Modal):
         name = self.name_input.value.strip()
         value = self.value_input.value.strip()
         inline = self.inline_input.value.strip().lower() == "true"
+
+        if name == "//" or value == "//":
+            await interaction.response.edit_message(embed=self.view.get_current_embed(), view=self.view)
+            return
 
         if len(self.view.fields) >= 25:
             await interaction.response.send_message("❌ Puoi aggiungere massimo 25 campi!", ephemeral=True)
