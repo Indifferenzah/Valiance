@@ -436,17 +436,17 @@ async def on_message(message):
     for mention in message.mentions:
         if mention not in session.tagged_users:
             session.tagged_users.append(mention)
-            
+
             position = len(session.tagged_users) - 1
-            is_red = position % 2 == 0
-            
+            is_red = position < 4
+
             if mention.voice and mention.voice.channel:
                 try:
                     target_channel = session.red_voice if is_red else session.green_voice
                     await mention.move_to(target_channel)
                     team_name = "ROSSO" if is_red else "VERDE"
                     logger.info(f'Spostato {mention.name} nel team {team_name}')
-                    
+
                     await session.text_channel.send(f'{mention.mention} → {"Team Rosso" if is_red else "Team Verde"}')
                 except Exception as e:
                     logger.error(f'Errore nello spostamento di {mention.name}: {e}')
@@ -543,7 +543,7 @@ async def create_game_session(guild, lobby_channel):
 
         embed = discord.Embed(
             title='**CW Interna** - Istruzioni',
-            description='**CW Interne Valiance**\n\nTagga fino a 8 giocatori per assegnare i team automaticamente:\n> Il primo taggato verrà inserito nel team ROSSO\n> Il secondo nel team VERDE\n> E cosi via...',
+            description='**CW Interne Valiance**\n\nTagga fino a 8 giocatori per assegnare i team automaticamente:\n> I primi 4 taggati verranno inseriti nel team ROSSO\n> Gli altri 4 nel team VERDE',
             color=discord.Color.blue()
         )
 
