@@ -4,6 +4,7 @@ from discord import app_commands
 import json
 import os
 from console_logger import logger
+from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
 
 class CWCog(commands.Cog):
     def __init__(self, bot):
@@ -24,6 +25,7 @@ class CWCog(commands.Cog):
             }
 
     @app_commands.command(name='cw', description='Crea un embed per la Clan War con numero, data, ora, team, mappa, recap e vincitore')
+    @owner_or_has_permissions(administrator=True)
     @app_commands.describe(
         numero='Numero della Clan War',
         data='Data della Clan War',
