@@ -44,9 +44,6 @@ categories = {
             '`/uptime` - Mostra uptime bot',
             '`/purge` - Elimina messaggi',
             '`/delete` - Elimina canale',
-            '`/cwend` - Termina partita CW',
-            '`/ruleset` - Mostra ruleset',
-            '`/setruleset` - Imposta ruleset',
             '`/startct` - Avvia counter',
             '`/stopct` - Ferma counter',
             '`/embed` - Crea embed personalizzato',
@@ -99,6 +96,16 @@ categories = {
             '`/reloadmod` - Ricarica config di moderazione',
             '`/reloadconfig` - Ricarica config generale',
             '`/reloadall` - Ricarica tutte le configurazioni'
+        ]
+    },
+    'cw': {
+        'emoji': '📆',
+        'name': 'Clan Wars',
+        'commands': [
+            '`/cwend` - Termina partita CW',
+            '`/ruleset` - Mostra ruleset',
+            '`/setruleset` - Imposta ruleset',
+            '`/cw` - Invia punteggio CW',
         ]
     }
 }
