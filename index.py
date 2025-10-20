@@ -37,6 +37,7 @@ from fun import FunCog
 from regole import RulesCog
 from tts import TTSCog
 from cw import CWCog
+from help import HelpCog
 
 active_sessions = {}
 
@@ -981,67 +982,7 @@ async def slash_embed(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     logger.info(f'Comando /embed usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
-@bot.tree.command(name='help', description='Mostra una lista di tutti i comandi slash disponibili')
-async def slash_help(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title='📋 Comandi Disponibili',
-        description='Ecco una lista di tutti i comandi slash disponibili su questo bot:',
-        color=0x00ff00
-    )
 
-    embed.add_field(
-        name='🛡️ Moderazione',
-        value='`/ban` - Banna un membro\n`/kick` - Kicka un membro\n`/mute` - Muta un membro\n`/unmute` - Smuta un membro\n`/warn` - Aggiungi un warn\n`/unwarn` - Rimuovi un warn\n`/listwarns` - Mostra i warn\n`/clearwarns` - Rimuovi tutti i warn\n`/listban` - Mostra i ban\n`/checkban` - Controlla se un utente è bannato\n`/checkmute` - Controlla se un utente è mutato\n`/nick` - Imposta nickname a un utente',
-        inline=False
-    )
-
-    embed.add_field(
-        name='🎫 Ticket',
-        value='`/ticketpanel` - Crea pannello ticket\n`/close` - Chiudi ticket\n`/transcript` - Genera transcript\n`/add` - Aggiungi utente al ticket\n`/remove` - Rimuovi utente dal ticket\n`/rename` - Rinomina ticket\n`/blacklist` - Blacklist utente',
-        inline=False
-    )
-
-    embed.add_field(
-        name='🔧 Utilità',
-        value='`/ping` - Mostra latenza bot\n`/uptime` - Mostra uptime bot\n`/purge` - Elimina messaggi\n`/delete` - Elimina canale\n`/cwend` - Termina partita CW\n`/ruleset` - Mostra ruleset\n`/setruleset` - Imposta ruleset\n`/startct` - Avvia counter\n`/stopct` - Ferma counter\n`/embed` - Crea embed personalizzato\n`/regole` - Manda le regole del server',
-        inline=False
-    )
-
-    embed.add_field(
-        name='🎭 AutoRole',
-        value='`/createreact` - Crea messaggio reazione ruoli',
-        inline=False
-    )
-
-    embed.add_field(
-        name='🎲 Fun',
-        value='`/coinflip` - Lancia una moneta\n`/roll` - Tira un dado\n`/avatar` - Mostra l\'avatar di un utente\n`/userinfo` - Mostra informazioni su un utente\n`/serverinfo` - Mostra informazioni sul server',
-        inline=False
-    )
-
-    embed.add_field(
-        name='📝 TTS',
-        value='`/say` - Usa TTS\n`/voice` - Imposta voce\n`/volume` - Cambia volume\n`/stop` - Ferma TTS',
-        inline=False
-    )
-
-    embed.add_field(
-        name='⚙️ Logs',
-        value='`/logs` - Visualizza file di log\n`/dellogs` - Elimina file di log\n`/setlogchannel` - Imposta canali di log',
-        inline=False
-    )
-
-    embed.add_field(
-        name='🔄 Reload',
-        value='`/reloadlog` - Ricarica config di log\n`/reloadticket` - Ricarica config di ticket\n`/reloadmod` - Ricarica config di moderazione\n`/reloadconfig` - Ricarica config generale\n`/reloadall` - Ricarica tutte le configurazioni',
-        inline=False
-    )
-
-
-    embed.set_footer(text='Valiance Bot | Usa / per accedere ai comandi')
-
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-    logger.info(f'Comando /help usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 class LogSelectView(discord.ui.View):
     def __init__(self, log_files, action='view'):
@@ -1340,7 +1281,7 @@ if __name__ == '__main__':
         import asyncio
 
         async def setup_modules():
-            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole', 'tts', 'cw']
+            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole', 'tts', 'cw', 'help']
             for modname in modules_to_setup:
                 try:
                     mod = importlib.import_module(modname)
