@@ -214,5 +214,149 @@
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
         "author_header": true
+    },
+    "channel_create_message": {
+        "title": "Canale Creato",
+        "description": "Il canale {channel} è stato creato da {staffer}.\n**Tipo:** {type}\n**ID:** {id}",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "channel_delete_message": {
+        "title": "Canale Eliminato",
+        "description": "Il canale {name} è stato eliminato da {staffer}.\n**Tipo:** {type}\n**ID:** {id}",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "channel_update_message": {
+        "title": "Canale Aggiornato",
+        "description": "Il canale {channel} è stato aggiornato da {staffer}.\n**Modifiche:** {changes}",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "thread_create_message": {
+        "title": "Thread Creato",
+        "description": "Il thread {thread} è stato creato da {staffer}.\n**ID:** {id}",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "thread_delete_message": {
+        "title": "Thread Eliminato",
+        "description": "Il thread {name} è stato eliminato da {staffer}.\n**ID:** {id}",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "thread_update_message": {
+        "title": "Thread Aggiornato",
+        "description": "Il thread {thread} è stato aggiornato da {staffer}.\n**Modifiche:** {changes}",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "webhook_create_message": {
+        "title": "Webhook Creato",
+        "description": "Il webhook {name} è stato creato da {staffer}.\n**ID:** {id}",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "webhook_delete_message": {
+        "title": "Webhook Eliminato",
+        "description": "Il webhook {name} è stato eliminato da {staffer}.\n**ID:** {id}",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "webhook_update_message": {
+        "title": "Webhook Aggiornato",
+        "description": "Il webhook {name} è stato aggiornato da {staffer}.\n**Modifiche:** {changes}",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "emoji_create_message": {
+        "title": "Emoji Aggiunta",
+        "description": "L'emoji {emojis} è stato aggiunto da {staffer}.",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "emoji_delete_message": {
+        "title": "Emoji Rimossa",
+        "description": "L'emoji {emojis} è stato rimosso da {staffer}.",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "emoji_update_message": {
+        "title": "Emoji Aggiornata",
+        "description": "L'emoji {emojis} è stato aggiornato da {staffer}.",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "sticker_create_message": {
+        "title": "Sticker Aggiunto",
+        "description": "Lo sticker {stickers} è stato aggiunto da {staffer}.",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "sticker_delete_message": {
+        "title": "Sticker Rimosso",
+        "description": "Lo sticker {stickers} è stato rimosso da {staffer}.",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "sticker_update_message": {
+        "title": "Sticker Aggiornato",
+        "description": "Lo sticker {stickers} è stato aggiornato da {staffer}.",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "role_create_message": {
+        "title": "Ruolo Creato",
+        "description": "Il ruolo {role} è stato creato da {staffer}.\n**ID:** {id}",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "role_delete_message": {
+        "title": "Ruolo Eliminato",
+        "description": "Il ruolo {name} è stato eliminato da {staffer}.\n**ID:** {id}",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "guild_update_message": {
+        "title": "Server Aggiornato",
+        "description": "Il server è stato aggiornato da {staffer}.\n**Modifiche:** {changes}",
+        "color": 3447003,
+        "footer": "Valiance | Logging",
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
     }
 }

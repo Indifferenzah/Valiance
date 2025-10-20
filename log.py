@@ -21,13 +21,14 @@ class LogCog(commands.Cog):
                 except Exception:
                     self.log_config = {}
 
-    def reload_config(self):
-        if os.path.exists('log.json'):
-            with open('log.json', 'r', encoding='utf-8') as f:
-                try:
+    async def reload_config(self):
+        try:
+            if os.path.exists('log.json'):
+                with open('log.json', 'r', encoding='utf-8') as f:
                     self.log_config = json.load(f)
-                except Exception:
-                    self.log_config = {}
+        except Exception as e:
+            logger.error(f'Errore nel caricamento di log.json: {e}')
+            self.log_config = {}
 
     def _format_datetime(self, dt: datetime):
         if not dt:
@@ -65,7 +66,41 @@ class LogCog(commands.Cog):
             s = s.replace('{' + k + '}', str(v))
         return s
 
-    async def _send_log_embed(self, channel_id, embed_config, **kwargs):
+    async def _get_audit_user(self, action, target_id, guild):
+        try:
+            async for entry in guild.audit_logs(action=action, limit=5):
+                if entry.target.id == target_id:
+                    return entry.user.mention if entry.user else 'Sistema'
+            return 'Sistema'
+        except Exception:
+            return 'Sistema'
+
+    def _format_permissions_diff(self, before, after):
+        added = []
+        removed = []
+        for perm in discord.Permissions.VALID_FLAGS:
+            b_val = getattr(before, perm, False)
+            a_val = getattr(after, perm, False)
+            if b_val != a_val:
+                if a_val:
+                    added.append(perm.replace('_', ' '))
+                else:
+                    removed.append(perm.replace('_', ' '))
+        return ', '.join(added) if added else 'Nessuno', ', '.join(removed) if removed else 'Nessuno'
+
+    def _get_channel_type_name(self, channel):
+        if isinstance(channel, discord.TextChannel):
+            return 'Testo'
+        elif isinstance(channel, discord.VoiceChannel):
+            return 'Voce'
+        elif isinstance(channel, discord.CategoryChannel):
+            return 'Categoria'
+        elif isinstance(channel, discord.Thread):
+            return 'Thread'
+        else:
+            return 'Sconosciuto'
+
+    async def _send_log_embed(self, channel_id, embed_config, guild=None, **kwargs):
         try:
             if not channel_id:
                 return
@@ -78,6 +113,9 @@ class LogCog(commands.Cog):
             description = self._render_template(cfg.get('description', ''), **kwargs)
 
             embed = discord.Embed(title=title or None, description=description or None, color=cfg.get('color', 0x00ff00))
+            embed.timestamp = datetime.now(timezone.utc)
+            if guild and guild.icon:
+                embed.set_author(icon_url=guild.icon.url)
             if cfg.get('thumbnail'):
                 thumb = self._render_template(cfg.get('thumbnail'), **kwargs)
                 embed.set_thumbnail(url=thumb)
@@ -191,18 +229,19 @@ class LogCog(commands.Cog):
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, user: discord.User):
         try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.ban, user.id, guild)
             async for entry in guild.audit_logs(action=discord.AuditLogAction.ban, limit=1):
                 if entry.target.id == user.id:
-                    staffer = entry.user.mention if entry.user else 'Sistema'
                     reason = entry.reason or 'Nessuna ragione'
                     break
             else:
-                staffer = 'Sistema'
                 reason = 'Nessuna ragione'
 
+            logger.info(f'Member banned: {user.name} ({user.id}) by {staffer} - Reason: {reason}')
             await self._send_log_embed(
                 self.log_config.get('moderation_log_channel_id'),
                 self.log_config.get('ban_message', {}),
+                guild=guild,
                 mention=user.mention,
                 id=user.id,
                 avatar=user.display_avatar.url,
@@ -218,16 +257,13 @@ class LogCog(commands.Cog):
     @commands.Cog.listener()
     async def on_member_unban(self, guild: discord.Guild, user: discord.User):
         try:
-            async for entry in guild.audit_logs(action=discord.AuditLogAction.unban, limit=1):
-                if entry.target.id == user.id:
-                    staffer = entry.user.mention if entry.user else 'Sistema'
-                    break
-            else:
-                staffer = 'Sistema'
+            staffer = await self._get_audit_user(discord.AuditLogAction.unban, user.id, guild)
 
+            logger.info(f'Member unbanned: {user.name} ({user.id}) by {staffer}')
             await self._send_log_embed(
                 self.log_config.get('moderation_log_channel_id'),
                 self.log_config.get('unban_message', {}),
+                guild=guild,
                 mention=user.mention,
                 id=user.id,
                 avatar=user.display_avatar.url,
@@ -242,44 +278,45 @@ class LogCog(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
         try:
-            if before.overwrites != after.overwrites:
-                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.channel_update, limit=5):
-                    if entry.target.id == after.id:
-                        staffer = entry.user.mention if entry.user else 'Sistema'
-                        break
-                else:
-                    staffer = 'Sistema'
+            changes = []
+            if before.name != after.name:
+                changes.append(f"Nome: {before.name} → {after.name}")
+            if hasattr(before, 'topic') and hasattr(after, 'topic') and before.topic != after.topic:
+                changes.append(f"Topic: {before.topic or 'Nessuno'} → {after.topic or 'Nessuno'}")
+            if hasattr(before, 'nsfw') and hasattr(after, 'nsfw') and before.nsfw != after.nsfw:
+                changes.append(f"NSFW: {before.nsfw} → {after.nsfw}")
+            if hasattr(before, 'slowmode_delay') and hasattr(after, 'slowmode_delay') and before.slowmode_delay != after.slowmode_delay:
+                changes.append(f"Slowmode: {before.slowmode_delay}s → {after.slowmode_delay}s")
+            if hasattr(before, 'position') and hasattr(after, 'position') and before.position != after.position:
+                changes.append(f"Posizione: {before.position} → {after.position}")
 
-                added_perms = []
-                removed_perms = []
-                for target, after_overwrite in after.overwrites.items():
-                    before_overwrite = before.overwrites.get(target)
-                    if before_overwrite:
-                        for perm, value in after_overwrite:
-                            if perm not in before_overwrite or before_overwrite[perm] != value:
-                                if value is True:
-                                    added_perms.append(f"{perm} per {target}")
-                                elif value is False:
-                                    removed_perms.append(f"{perm} per {target}")
-                    else:
-                        for perm, value in after_overwrite:
-                            if value is True:
-                                added_perms.append(f"{perm} per {target}")
-                            elif value is False:
-                                removed_perms.append(f"{perm} per {target}")
-
-                added_str = ', '.join(added_perms) if added_perms else 'Nessuno'
-                removed_str = ', '.join(removed_perms) if removed_perms else 'Nessuno'
-
+            if changes:
+                staffer = await self._get_audit_user(discord.AuditLogAction.channel_update, after.id, after.guild)
+                logger.info(f'Channel updated: {after.name} ({after.id}) by {staffer} - Changes: {", ".join(changes)}')
                 await self._send_log_embed(
                     self.log_config.get('moderation_log_channel_id'),
-                    self.log_config.get('channel_permission_update_message', {}),
+                    self.log_config.get('channel_update_message', {}),
+                    guild=after.guild,
                     channel=after.mention,
                     id=after.id,
                     staffer=staffer,
                     total_members=after.guild.member_count,
-                    added_perms=added_str,
-                    removed_perms=removed_str
+                    changes=', '.join(changes)
+                )
+            elif before.overwrites != after.overwrites:
+                staffer = await self._get_audit_user(discord.AuditLogAction.channel_update, after.id, after.guild)
+                added_perms, removed_perms = self._format_permissions_diff(before.overwrites, after.overwrites)
+                logger.info(f'Channel permissions updated: {after.name} ({after.id}) by {staffer} - Added: {added_perms}, Removed: {removed_perms}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('channel_permission_update_message', {}),
+                    guild=after.guild,
+                    channel=after.mention,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    added_perms=added_perms,
+                    removed_perms=removed_perms
                 )
         except Exception as e:
             logger.error(f'Errore in on_guild_channel_update: {e}')
@@ -288,36 +325,19 @@ class LogCog(commands.Cog):
     async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
         try:
             if before.permissions != after.permissions:
-                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.role_update, limit=5):
-                    if entry.target.id == after.id:
-                        staffer = entry.user.mention if entry.user else 'Sistema'
-                        break
-                else:
-                    staffer = 'Sistema'
-
-                added_perms = []
-                removed_perms = []
-                for perm in discord.Permissions.VALID_FLAGS:
-                    before_value = getattr(before.permissions, perm, False)
-                    after_value = getattr(after.permissions, perm, False)
-                    if before_value != after_value:
-                        if after_value:
-                            added_perms.append(perm.replace('_', ' '))
-                        else:
-                            removed_perms.append(perm.replace('_', ' '))
-
-                added_str = ', '.join(added_perms) if added_perms else 'Nessuno'
-                removed_str = ', '.join(removed_perms) if removed_perms else 'Nessuno'
-
+                staffer = await self._get_audit_user(discord.AuditLogAction.role_update, after.id, after.guild)
+                added_perms, removed_perms = self._format_permissions_diff(before.permissions, after.permissions)
+                logger.info(f'Role permissions updated: {after.name} ({after.id}) by {staffer} - Added: {added_perms}, Removed: {removed_perms}')
                 await self._send_log_embed(
                     self.log_config.get('moderation_log_channel_id'),
                     self.log_config.get('role_permission_update_message', {}),
+                    guild=after.guild,
                     role=after.mention,
                     id=after.id,
                     staffer=staffer,
                     total_members=after.guild.member_count,
-                    added_perms=added_str,
-                    removed_perms=removed_str
+                    added_perms=added_perms,
+                    removed_perms=removed_perms
                 )
         except Exception as e:
             logger.error(f'Errore in on_guild_role_update: {e}')
@@ -327,9 +347,9 @@ class LogCog(commands.Cog):
         try:
             if before.is_timed_out() != after.is_timed_out():
                 if after.is_timed_out():
+                    staffer = await self._get_audit_user(discord.AuditLogAction.member_update, after.id, after.guild)
                     async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
                         if entry.target.id == after.id and entry.after.timed_out_until is not None:
-                            staffer = entry.user.mention if entry.user else 'Sistema'
                             reason = entry.reason or 'Nessuna ragione'
                             duration = 'Unknown'
                             if entry.after.timed_out_until:
@@ -337,13 +357,14 @@ class LogCog(commands.Cog):
                                 duration = self._format_timedelta(delta)
                             break
                     else:
-                        staffer = 'Sistema'
                         reason = 'Nessuna ragione'
                         duration = 'Unknown'
 
+                    logger.info(f'Member muted: {after.name} ({after.id}) by {staffer} - Reason: {reason}, Duration: {duration}')
                     await self._send_log_embed(
                         self.log_config.get('moderation_log_channel_id'),
                         self.log_config.get('mute_message', {}),
+                        guild=after.guild,
                         mention=after.mention,
                         id=after.id,
                         avatar=after.display_avatar.url,
@@ -355,16 +376,12 @@ class LogCog(commands.Cog):
                         duration=duration
                     )
                 else:
-                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
-                        if entry.target.id == after.id and entry.before.timed_out_until is not None and entry.after.timed_out_until is None:
-                            staffer = entry.user.mention if entry.user else 'Sistema'
-                            break
-                    else:
-                        staffer = 'Sistema'
-
+                    staffer = await self._get_audit_user(discord.AuditLogAction.member_update, after.id, after.guild)
+                    logger.info(f'Member unmuted: {after.name} ({after.id}) by {staffer}')
                     await self._send_log_embed(
                         self.log_config.get('moderation_log_channel_id'),
                         self.log_config.get('unmute_message', {}),
+                        guild=after.guild,
                         mention=after.mention,
                         id=after.id,
                         avatar=after.display_avatar.url,
@@ -374,18 +391,13 @@ class LogCog(commands.Cog):
                         staffer=staffer
                     )
             elif before.nick != after.nick:
-                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
-                    if entry.target.id == after.id and (entry.before.nick != entry.after.nick):
-                        staffer = entry.user.mention if entry.user else 'Sistema'
-                        new_nick = entry.after.nick or 'Resettato'
-                        break
-                else:
-                    staffer = 'Sistema'
-                    new_nick = after.nick or 'Resettato'
-
+                staffer = await self._get_audit_user(discord.AuditLogAction.member_update, after.id, after.guild)
+                new_nick = after.nick or 'Resettato'
+                logger.info(f'Member nickname changed: {after.name} ({after.id}) by {staffer} - New nick: {new_nick}')
                 await self._send_log_embed(
                     self.log_config.get('moderation_log_channel_id'),
                     self.log_config.get('nick_message', {}),
+                    guild=after.guild,
                     mention=after.mention,
                     id=after.id,
                     avatar=after.display_avatar.url,
@@ -400,19 +412,14 @@ class LogCog(commands.Cog):
                 removed_roles = [role for role in before.roles if role not in after.roles]
 
                 if added_roles or removed_roles:
-                    async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_role_update, limit=5):
-                        if entry.target.id == after.id:
-                            staffer = entry.user.mention if entry.user else 'Sistema'
-                            break
-                    else:
-                        staffer = 'Sistema'
-
+                    staffer = await self._get_audit_user(discord.AuditLogAction.member_role_update, after.id, after.guild)
                     added_str = ', '.join([r.mention for r in added_roles]) if added_roles else 'Nessuno'
                     removed_str = ', '.join([r.mention for r in removed_roles]) if removed_roles else 'Nessuno'
-
+                    logger.info(f'Member roles changed: {after.name} ({after.id}) by {staffer} - Added: {added_str}, Removed: {removed_str}')
                     await self._send_log_embed(
                         self.log_config.get('moderation_log_channel_id'),
                         self.log_config.get('role_change_message', {}),
+                        guild=after.guild,
                         mention=after.mention,
                         id=after.id,
                         avatar=after.display_avatar.url,
@@ -424,42 +431,11 @@ class LogCog(commands.Cog):
                         staffer=staffer
                     )
             elif before.premium_since != after.premium_since and after.premium_since is not None:
+                logger.info(f'Member boosted: {after.name} ({after.id})')
                 await self._send_log_embed(
                     self.log_config.get('boost_log_channel_id'),
                     self.log_config.get('boost_message', {}),
-                    mention=after.mention,
-                    id=after.id,
-                    avatar=after.display_avatar.url,
-                    author_name=after.name,
-                    author_icon=after.display_avatar.url,
-                    total_members=after.guild.member_count
-                )
-            elif before.nick != after.nick:
-                async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_update, limit=5):
-                    if entry.target.id == after.id and (entry.before.nick != entry.after.nick):
-                        staffer = entry.user.mention if entry.user else 'Sistema'
-                        new_nick = entry.after.nick or 'Resettato'
-                        break
-                else:
-                    staffer = 'Sistema'
-                    new_nick = after.nick or 'Resettato'
-
-                await self._send_log_embed(
-                    self.log_config.get('moderation_log_channel_id'),
-                    self.log_config.get('nick_message', {}),
-                    mention=after.mention,
-                    id=after.id,
-                    avatar=after.display_avatar.url,
-                    author_name=after.name,
-                    author_icon=after.display_avatar.url,
-                    total_members=after.guild.member_count,
-                    staffer=staffer,
-                    new_nick=new_nick
-                )
-            elif before.premium_since != after.premium_since and after.premium_since is not None:
-                await self._send_log_embed(
-                    self.log_config.get('boost_log_channel_id'),
-                    self.log_config.get('boost_message', {}),
+                    guild=after.guild,
                     mention=after.mention,
                     id=after.id,
                     avatar=after.display_avatar.url,
@@ -476,9 +452,11 @@ class LogCog(commands.Cog):
             if message.author.bot:
                 return
             content = message.content or 'Nessun contenuto'
+            logger.info(f'Message deleted: {message.author.name} ({message.author.id}) in {message.channel.name} - Content: {content[:100]}...')
             await self._send_log_embed(
                 self.log_config.get('message_log_channel_id'),
                 self.log_config.get('message_delete_message', {}),
+                guild=message.guild,
                 mention=message.author.mention,
                 id=message.author.id,
                 avatar=message.author.display_avatar.url,
@@ -498,9 +476,11 @@ class LogCog(commands.Cog):
                 return
             old_content = before.content or 'Nessun contenuto'
             new_content = after.content or 'Nessun contenuto'
+            logger.info(f'Message edited: {before.author.name} ({before.author.id}) in {before.channel.name} - Old: {old_content[:50]}..., New: {new_content[:50]}...')
             await self._send_log_embed(
                 self.log_config.get('message_log_channel_id'),
                 self.log_config.get('message_edit_message', {}),
+                guild=before.guild,
                 mention=before.author.mention,
                 id=before.author.id,
                 avatar=before.author.display_avatar.url,
@@ -676,6 +656,317 @@ class LogCog(commands.Cog):
             total_members=member.guild.member_count,
             word=word
         )
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.channel_create, channel.id, channel.guild)
+            logger.info(f'Channel created: {channel.name} ({channel.id}) by {staffer} - Type: {self._get_channel_type_name(channel)}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('channel_create_message', {}),
+                guild=channel.guild,
+                channel=channel.mention,
+                id=channel.id,
+                staffer=staffer,
+                total_members=channel.guild.member_count,
+                type=self._get_channel_type_name(channel)
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_channel_create: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.channel_delete, channel.id, channel.guild)
+            logger.info(f'Channel deleted: {channel.name} ({channel.id}) by {staffer} - Type: {self._get_channel_type_name(channel)}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('channel_delete_message', {}),
+                guild=channel.guild,
+                name=channel.name,
+                id=channel.id,
+                staffer=staffer,
+                total_members=channel.guild.member_count,
+                type=self._get_channel_type_name(channel)
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_channel_delete: {e}')
+
+    @commands.Cog.listener()
+    async def on_thread_create(self, thread: discord.Thread):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.thread_create, thread.id, thread.guild)
+            logger.info(f'Thread created: {thread.name} ({thread.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('thread_create_message', {}),
+                guild=thread.guild,
+                thread=thread.mention,
+                id=thread.id,
+                staffer=staffer,
+                total_members=thread.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_thread_create: {e}')
+
+    @commands.Cog.listener()
+    async def on_thread_delete(self, thread: discord.Thread):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.thread_delete, thread.id, thread.guild)
+            logger.info(f'Thread deleted: {thread.name} ({thread.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('thread_delete_message', {}),
+                guild=thread.guild,
+                name=thread.name,
+                id=thread.id,
+                staffer=staffer,
+                total_members=thread.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_thread_delete: {e}')
+
+    @commands.Cog.listener()
+    async def on_thread_update(self, before: discord.Thread, after: discord.Thread):
+        try:
+            changes = []
+            if before.name != after.name:
+                changes.append(f"Nome: {before.name} → {after.name}")
+            if before.archived != after.archived:
+                changes.append(f"Archiviato: {before.archived} → {after.archived}")
+            if before.locked != after.locked:
+                changes.append(f"Bloccato: {before.locked} → {after.locked}")
+
+            if changes:
+                staffer = await self._get_audit_user(discord.AuditLogAction.thread_update, after.id, after.guild)
+                logger.info(f'Thread updated: {after.name} ({after.id}) by {staffer} - Changes: {", ".join(changes)}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('thread_update_message', {}),
+                    guild=after.guild,
+                    thread=after.mention,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    changes=', '.join(changes)
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_thread_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_webhook_create(self, webhook: discord.Webhook):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.webhook_create, webhook.id, webhook.guild)
+            logger.info(f'Webhook created: {webhook.name} ({webhook.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('webhook_create_message', {}),
+                guild=webhook.guild,
+                name=webhook.name,
+                id=webhook.id,
+                staffer=staffer,
+                total_members=webhook.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_webhook_create: {e}')
+
+    @commands.Cog.listener()
+    async def on_webhook_delete(self, webhook: discord.Webhook):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.webhook_delete, webhook.id, webhook.guild)
+            logger.info(f'Webhook deleted: {webhook.name} ({webhook.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('webhook_delete_message', {}),
+                guild=webhook.guild,
+                name=webhook.name,
+                id=webhook.id,
+                staffer=staffer,
+                total_members=webhook.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_webhook_delete: {e}')
+
+    @commands.Cog.listener()
+    async def on_webhook_update(self, before: discord.Webhook, after: discord.Webhook):
+        try:
+            changes = []
+            if before.name != after.name:
+                changes.append(f"Nome: {before.name} → {after.name}")
+            if before.channel != after.channel:
+                changes.append(f"Canale: {before.channel.mention} → {after.channel.mention}")
+
+            if changes:
+                staffer = await self._get_audit_user(discord.AuditLogAction.webhook_update, after.id, after.guild)
+                logger.info(f'Webhook updated: {after.name} ({after.id}) by {staffer} - Changes: {", ".join(changes)}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('webhook_update_message', {}),
+                    guild=after.guild,
+                    name=after.name,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    changes=', '.join(changes)
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_webhook_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_emojis_update(self, guild: discord.Guild, before, after):
+        try:
+            added = [e for e in after if e not in before]
+            removed = [e for e in before if e not in after]
+            updated = [e for e in after if e in before and any(getattr(e, attr) != getattr(next((b for b in before if b.id == e.id), None), attr) for attr in ['name'])]
+
+            if added:
+                staffer = await self._get_audit_user(discord.AuditLogAction.emoji_create, added[0].id, guild)
+                logger.info(f'Emoji added: {", ".join([e.name for e in added])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('emoji_create_message', {}),
+                    guild=guild,
+                    emojis=', '.join([str(e) for e in added]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+            if removed:
+                staffer = await self._get_audit_user(discord.AuditLogAction.emoji_delete, removed[0].id, guild)
+                logger.info(f'Emoji removed: {", ".join([e.name for e in removed])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('emoji_delete_message', {}),
+                    guild=guild,
+                    emojis=', '.join([e.name for e in removed]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+            if updated:
+                staffer = await self._get_audit_user(discord.AuditLogAction.emoji_update, updated[0].id, guild)
+                logger.info(f'Emoji updated: {", ".join([e.name for e in updated])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('emoji_update_message', {}),
+                    guild=guild,
+                    emojis=', '.join([str(e) for e in updated]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_emojis_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_stickers_update(self, guild: discord.Guild, before, after):
+        try:
+            added = [s for s in after if s not in before]
+            removed = [s for s in before if s not in after]
+            updated = [s for s in after if s in before and any(getattr(s, attr) != getattr(next((b for b in before if b.id == s.id), None), attr) for attr in ['name'])]
+
+            if added:
+                staffer = await self._get_audit_user(discord.AuditLogAction.sticker_create, added[0].id, guild)
+                logger.info(f'Sticker added: {", ".join([s.name for s in added])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('sticker_create_message', {}),
+                    guild=guild,
+                    stickers=', '.join([s.name for s in added]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+            if removed:
+                staffer = await self._get_audit_user(discord.AuditLogAction.sticker_delete, removed[0].id, guild)
+                logger.info(f'Sticker removed: {", ".join([s.name for s in removed])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('sticker_delete_message', {}),
+                    guild=guild,
+                    stickers=', '.join([s.name for s in removed]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+            if updated:
+                staffer = await self._get_audit_user(discord.AuditLogAction.sticker_update, updated[0].id, guild)
+                logger.info(f'Sticker updated: {", ".join([s.name for s in updated])} by {staffer}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('sticker_update_message', {}),
+                    guild=guild,
+                    stickers=', '.join([s.name for s in updated]),
+                    staffer=staffer,
+                    total_members=guild.member_count
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_stickers_update: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_role_create(self, role: discord.Role):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.role_create, role.id, role.guild)
+            logger.info(f'Role created: {role.name} ({role.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('role_create_message', {}),
+                guild=role.guild,
+                role=role.mention,
+                id=role.id,
+                staffer=staffer,
+                total_members=role.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_role_create: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_role_delete(self, role: discord.Role):
+        try:
+            staffer = await self._get_audit_user(discord.AuditLogAction.role_delete, role.id, role.guild)
+            logger.info(f'Role deleted: {role.name} ({role.id}) by {staffer}')
+            await self._send_log_embed(
+                self.log_config.get('moderation_log_channel_id'),
+                self.log_config.get('role_delete_message', {}),
+                guild=role.guild,
+                name=role.name,
+                id=role.id,
+                staffer=staffer,
+                total_members=role.guild.member_count
+            )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_role_delete: {e}')
+
+    @commands.Cog.listener()
+    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
+        try:
+            changes = []
+            if before.name != after.name:
+                changes.append(f"Nome: {before.name} → {after.name}")
+            if before.description != after.description:
+                changes.append(f"Descrizione: {before.description or 'Nessuna'} → {after.description or 'Nessuna'}")
+            if before.icon != after.icon:
+                changes.append("Icona cambiata")
+            if before.banner != after.banner:
+                changes.append("Banner cambiato")
+            if before.splash != after.splash:
+                changes.append("Splash cambiato")
+            if before.afk_channel != after.afk_channel:
+                changes.append(f"Canale AFK: {before.afk_channel.mention if before.afk_channel else 'Nessuno'} → {after.afk_channel.mention if after.afk_channel else 'Nessuno'}")
+            if before.system_channel != after.system_channel:
+                changes.append(f"Canale di sistema: {before.system_channel.mention if before.system_channel else 'Nessuno'} → {after.system_channel.mention if after.system_channel else 'Nessuno'}")
+
+            if changes:
+                staffer = await self._get_audit_user(discord.AuditLogAction.guild_update, after.id, after)
+                logger.info(f'Guild updated: {after.name} ({after.id}) by {staffer} - Changes: {", ".join(changes)}')
+                await self._send_log_embed(
+                    self.log_config.get('moderation_log_channel_id'),
+                    self.log_config.get('guild_update_message', {}),
+                    guild=after,
+                    name=after.name,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.member_count,
+                    changes=', '.join(changes)
+                )
+        except Exception as e:
+            logger.error(f'Errore in on_guild_update: {e}')
 
 async def setup(bot):
     await bot.add_cog(LogCog(bot))
