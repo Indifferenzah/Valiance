@@ -201,7 +201,7 @@
     },
     "channel_permission_update_message": {
         "title": "Permessi Canale Aggiornati",
-        "description": "I permessi del canale {channel} sono stati aggiornati da {staffer}.\n**Permessi aggiunti:** {added_perms}\n**Permessi rimossi:** {removed_perms}",
+        "description": "I permessi del canale {channel} sono stati aggiornati da {staffer}.\n{changes}",
         "color": 16776960,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
@@ -357,6 +357,31 @@
         "color": 3447003,
         "footer": "Valiance | Logging",
         "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "author_header": true
+    },
+    "voice_log_channel_id": "1428464022835036210",
+    "vc_join_message": {
+        "title": "Entrato in VC",
+        "description": "{mention} è entrato nel canale vocale {channel}.",
+        "color": 65280,
+        "footer": "Valiance | Logging",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "vc_leave_message": {
+        "title": "Uscito da VC",
+        "description": "{mention} è uscito dal canale vocale {channel}.",
+        "color": 16711680,
+        "footer": "Valiance | Logging",
+        "thumbnail": "{avatar}",
+        "author_header": true
+    },
+    "vc_move_message": {
+        "title": "Spostato in VC",
+        "description": "{mention} si è spostato da {old_channel} a {new_channel}.",
+        "color": 16776960,
+        "footer": "Valiance | Logging",
+        "thumbnail": "{avatar}",
         "author_header": true
     }
 }
