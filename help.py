@@ -167,7 +167,7 @@ class HelpCog(commands.Cog):
 
         view = HelpSelectView(interaction.user.id, self.bot)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        logger.info(f'Utente {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) ha usato il comando /help')
+        logger.info(f'Comando /help usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 async def setup(bot):
     await bot.add_cog(HelpCog(bot))
