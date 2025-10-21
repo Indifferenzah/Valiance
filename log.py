@@ -304,55 +304,55 @@ class LogCog(commands.Cog):
         except Exception as e:
             logger.error(f'Errore in on_member_unban: {e}')
 
-@commands.Cog.listener()
-async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
-    try:
-        changes = []
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+        try:
+            changes = []
 
-        if before.name != after.name:
-            changes.append(f"Nome: `{before.name}` → `{after.name}`")
+            if before.name != after.name:
+                changes.append(f"Nome: `{before.name}` → `{after.name}`")
 
-        if getattr(before, 'topic', None) != getattr(after, 'topic', None):
-            before_topic = before.topic or 'Nessuno'
-            after_topic = after.topic or 'Nessuno'
-            changes.append(f"Topic: `{before_topic}` → `{after_topic}`")
+            if getattr(before, 'topic', None) != getattr(after, 'topic', None):
+                before_topic = before.topic or 'Nessuno'
+                after_topic = after.topic or 'Nessuno'
+                changes.append(f"Topic: `{before_topic}` → `{after_topic}`")
 
-        if getattr(before, 'nsfw', None) != getattr(after, 'nsfw', None):
-            changes.append(f"NSFW: `{before.nsfw}` → `{after.nsfw}`")
+            if getattr(before, 'nsfw', None) != getattr(after, 'nsfw', None):
+                changes.append(f"NSFW: `{before.nsfw}` → `{after.nsfw}`")
 
-        if getattr(before, 'slowmode_delay', None) != getattr(after, 'slowmode_delay', None):
-            changes.append(f"Slowmode: `{before.slowmode_delay}s` → `{after.slowmode_delay}s`")
+            if getattr(before, 'slowmode_delay', None) != getattr(after, 'slowmode_delay', None):
+                changes.append(f"Slowmode: `{before.slowmode_delay}s` → `{after.slowmode_delay}s`")
 
-        if before.position != after.position:
-            changes.append(f"Posizione: `{before.position}` → `{after.position}`")
+            if before.position != after.position:
+                changes.append(f"Posizione: `{before.position}` → `{after.position}`")
 
-        perm_changes = ""
-        if before.overwrites != after.overwrites:
-            perm_changes = self._format_permissions_diff(before.overwrites, after.overwrites)
-            if perm_changes:
-                changes.append(f"Permessi aggiornati:\n{perm_changes}")
+            perm_changes = ""
+            if before.overwrites != after.overwrites:
+                perm_changes = self._format_permissions_diff(before.overwrites, after.overwrites)
+                if perm_changes:
+                    changes.append(f"Permessi aggiornati:\n{perm_changes}")
 
-        if changes:
-            staffer = await self._get_audit_user(
-                discord.AuditLogAction.channel_update, after.id, after.guild
-            )
+            if changes:
+                staffer = await self._get_audit_user(
+                    discord.AuditLogAction.channel_update, after.id, after.guild
+                )
 
-            formatted_changes = "\n".join(changes)
-            logger.info(f"Channel updated: {after.name} ({after.id}) by {staffer} - Changes:\n{formatted_changes}")
+                formatted_changes = "\n".join(changes)
+                logger.info(f"Channel updated: {after.name} ({after.id}) by {staffer} - Changes:\n{formatted_changes}")
 
-            await self._send_log_embed(
-                self.log_config.get("moderation_log_channel_id"),
-                self.log_config.get("channel_update_message", {}),
-                guild=after.guild,
-                channel=after.mention,
-                id=after.id,
-                staffer=staffer,
-                total_members=after.guild.member_count,
-                changes=formatted_changes
-            )
+                await self._send_log_embed(
+                    self.log_config.get("moderation_log_channel_id"),
+                    self.log_config.get("channel_update_message", {}),
+                    guild=after.guild,
+                    channel=after.mention,
+                    id=after.id,
+                    staffer=staffer,
+                    total_members=after.guild.member_count,
+                    changes=formatted_changes
+                )
 
-    except Exception as e:
-        logger.error(f"Errore in on_guild_channel_update: {e}")
+        except Exception as e:
+            logger.error(f"Errore in on_guild_channel_update: {e}")
 
     @commands.Cog.listener()
     async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
