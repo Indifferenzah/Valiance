@@ -82,17 +82,14 @@ class LogCog(commands.Cog):
             b_over = before_overwrites.get(target)
             a_over = after_overwrites.get(target)
             if b_over is None:
-                # Added overwrite
                 if a_over:
                     allow_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_over, 'allow', 0) & getattr(discord.Permissions, p, 0)]
                     deny_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_over, 'deny', 0) & getattr(discord.Permissions, p, 0)]
                     if allow_perms or deny_perms:
                         changes.append(f"Aggiunto overwrite per {target.mention}: Allow {', '.join(allow_perms) or 'Nessuno'}, Deny {', '.join(deny_perms) or 'Nessuno'}")
             elif a_over is None:
-                # Removed overwrite
                 changes.append(f"Rimosso overwrite per {target.mention}")
             else:
-                # Changed overwrite
                 b_allow = getattr(b_over, 'allow', 0)
                 b_deny = getattr(b_over, 'deny', 0)
                 a_allow = getattr(a_over, 'allow', 0)
@@ -1006,7 +1003,6 @@ class LogCog(commands.Cog):
         try:
             if before.channel != after.channel:
                 if before.channel is None and after.channel is not None:
-                    # Join VC
                     logger.info(f'Voice join: {member.name} ({member.id}) joined {after.channel.name}')
                     await self._send_log_embed(
                         self.log_config.get('voice_log_channel_id'),
@@ -1021,7 +1017,6 @@ class LogCog(commands.Cog):
                         channel=after.channel.mention
                     )
                 elif before.channel is not None and after.channel is None:
-                    # Leave VC (disconnect)
                     logger.info(f'Voice leave: {member.name} ({member.id}) left {before.channel.name}')
                     await self._send_log_embed(
                         self.log_config.get('voice_log_channel_id'),
@@ -1036,7 +1031,6 @@ class LogCog(commands.Cog):
                         channel=before.channel.mention
                     )
                 elif before.channel is not None and after.channel is not None:
-                    # Move VC
                     logger.info(f'Voice move: {member.name} ({member.id}) moved from {before.channel.name} to {after.channel.name}')
                     await self._send_log_embed(
                         self.log_config.get('voice_log_channel_id'),
