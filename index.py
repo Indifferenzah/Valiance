@@ -147,6 +147,33 @@ async def on_ready():
         counter_task = bot.loop.create_task(counter_update_loop())
         logger.info('Loop di aggiornamento counter avviato')
 
+    ticket_cog = bot.get_cog('TicketCog')
+    if ticket_cog is None:
+        ticket_cog = TicketCog(bot)
+        try:
+            await bot.add_cog(ticket_cog)
+            logger.info('Ticket cog aggiunto')
+        except Exception as e:
+            logger.error(f'Ticket cog non aggiunto: {e}')
+    else:
+        logger.warning('Ticket cog già caricato')
+
+    for channel_id, ticket_info in list(ticket_cog.ticket_owners.items()):
+        if isinstance(ticket_info, dict) and 'close_message_id' in ticket_info:
+            channel = bot.get_channel(channel_id)
+            if channel:
+                try:
+                    message = await channel.fetch_message(ticket_info['close_message_id'])
+                    view = CloseTicketView(channel_id, ticket_cog)
+                    await message.edit(view=view)
+                    logger.info(f'View re-attached for ticket {channel.name}')
+                except Exception as e:
+                    logger.error(f'Errore nel re-attach della view per ticket {channel_id}: {e}')
+            else:
+                del ticket_cog.ticket_owners[channel_id]
+                ticket_cog.save_tickets()
+                logger.info(f'Ticket {channel_id} rimosso (canale eliminato)')
+
 @bot.event
 async def on_member_remove(member):
     if member.guild.id in counter_channels:
