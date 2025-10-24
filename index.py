@@ -6,7 +6,10 @@ import asyncio
 import os
 import re
 from dotenv import load_dotenv
+
 from console_logger import logger
+from embed_creator import EmbedCreatorView
+from cogs.ticket.ticket import TicketCog, TicketView, CloseTicketView
 
 load_dotenv()
 
@@ -20,24 +23,15 @@ intents.members = True
 intents.message_content = True
 intents.reactions = True
 
+
 def get_prefix(bot, message):
     prefixes = config.get('prefixes', ['v!'])
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
+
 bot = commands.Bot(command_prefix=get_prefix, intents=intents)
 
 from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
-
-from ticket import TicketCog, TicketView, CloseTicketView
-from moderation import ModerationCog
-from log import LogCog
-from autorole import AutoRoleCog
-from embed_creator import EmbedCreatorView
-from fun import FunCog
-from regole import RulesCog
-from tts import TTSCog
-from cw import CWCog
-from help import HelpCog
 
 active_sessions = {}
 
@@ -49,6 +43,7 @@ counter_channels = {}
 counter_task = None
 last_counter_update = {}
 
+
 class GameSession:
     def __init__(self, guild, lobby_channel):
         self.guild = guild
@@ -59,12 +54,14 @@ class GameSession:
         self.tagged_users = []
         self.is_active = False
 
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         await ctx.send('❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.')
     else:
         pass
+
 
 @tasks.loop(minutes=5)
 async def status_loop():
@@ -112,6 +109,7 @@ async def status_loop():
 
     await bot.change_presence(status=status_enum, activity=activity)
 
+
 @bot.event
 async def on_ready():
     bot.start_time = discord.utils.utcnow()
@@ -122,7 +120,7 @@ async def on_ready():
         logger.info(f'Sincronizzati {len(synced)} comandi slash')
     except Exception as e:
         logger.error(f'Errore nella sincronizzazione: {e}')
-    
+
     active_counters = config.get('active_counters', {})
     for guild_id_str, channels in active_counters.items():
         guild_id = int(guild_id_str)
@@ -149,101 +147,11 @@ async def on_ready():
         counter_task = bot.loop.create_task(counter_update_loop())
         logger.info('Loop di aggiornamento counter avviato')
 
-    ticket_cog = bot.get_cog('TicketCog')
-    if ticket_cog is None:
-        ticket_cog = TicketCog(bot)
-        try:
-            await bot.add_cog(ticket_cog)
-            logger.info('Ticket cog aggiunto')
-        except Exception as e:
-            logger.error(f'Ticket cog non aggiunto: {e}')
-    else:
-        logger.warning('Ticket cog già caricato')
-
-    for channel_id, ticket_info in list(ticket_cog.ticket_owners.items()):
-        if isinstance(ticket_info, dict) and 'close_message_id' in ticket_info:
-            channel = bot.get_channel(channel_id)
-            if channel:
-                try:
-                    message = await channel.fetch_message(ticket_info['close_message_id'])
-                    view = CloseTicketView(channel_id, ticket_cog)
-                    await message.edit(view=view)
-                    logger.info(f'View re-attached for ticket {channel.name}')
-                except Exception as e:
-                    logger.error(f'Errore nel re-attach della view per ticket {channel_id}: {e}')
-            else:
-                del ticket_cog.ticket_owners[channel_id]
-                ticket_cog.save_tickets()
-                logger.info(f'Ticket {channel_id} rimosso (canale eliminato)')
-
-    moderation_cog = bot.get_cog('ModerationCog')
-    if moderation_cog is None:
-        try:
-            await bot.add_cog(ModerationCog(bot))
-            logger.info('Moderation cog aggiunto')
-        except Exception as e:
-            logger.error(f'Moderation cog non aggiunto: {e}')
-    else:
-        logger.warning('Moderation cog già caricato')
-
-    log_cog = bot.get_cog('LogCog')
-    if log_cog is None:
-        try:
-            await bot.add_cog(LogCog(bot))
-            logger.info('Log cog aggiunto')
-        except Exception as e:
-            logger.error(f'Log cog non aggiunto: {e}')
-    else:
-        logger.warning('Log cog già caricato')
-    
-        fun_cog = bot.get_cog('FunCog')
-    if fun_cog is None:
-        try:
-            await bot.add_cog(FunCog(bot))
-            logger.info('Fun cog aggiunto')
-        except Exception as e:
-            logger.error(f'Fun cog non aggiunto: {e}')
-    else:
-        logger.warning('Fun cog già caricato')
-
-    autorole_cog = bot.get_cog('AutoRoleCog')
-    if autorole_cog is None:
-        try:
-            await bot.add_cog(AutoRoleCog(bot))
-            logger.info('AutoRole cog aggiunto')
-        except Exception as e:
-            logger.error(f'AutoRole cog non aggiunto: {e}')
-    else:
-        logger.warning('AutoRole cog già caricato')
-
-    ticket_cog = bot.get_cog('TicketCog')
-    if 'ticket_panel_message_id' in config and 'ticket_panel_channel_id' in config:
-        channel = bot.get_channel(int(config['ticket_panel_channel_id']))
-        if channel:
-            try:
-                message = await channel.fetch_message(int(config['ticket_panel_message_id']))
-                panel = config.get('ticket_panel', {})
-                embed = discord.Embed(
-                    title=panel.get('title', 'Support Tickets'),
-                    description=panel.get('description', 'Click a button to open a ticket'),
-                    color=panel.get('color', 0x00ff00)
-                )
-                if panel.get('thumbnail'):
-                    embed.set_thumbnail(url=panel['thumbnail'])
-                if panel.get('footer'):
-                    embed.set_footer(text=panel['footer'])
-
-                all_buttons = config.get('ticket_buttons', [])
-                view = TicketView(all_buttons, config, ticket_cog)
-                await message.edit(embed=embed, view=view)
-                logger.info('Ticket panel view re-attached')
-            except Exception as e:
-                logger.error(f'Errore nel ricaricare il pannello ticket: {e}')
-
 @bot.event
 async def on_member_remove(member):
     if member.guild.id in counter_channels:
-        await update_counters(member.guild) 
+        await update_counters(member.guild)
+
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -283,21 +191,22 @@ async def on_voice_state_update(member, before, after):
     except Exception as e:
         logger.error(f'Errore nel controllo di pulizia voice: {e}')
 
+
 @bot.event
 async def on_member_join(member):
     if member.guild.id in counter_channels:
         await update_counters(member.guild)
-    
+
     if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
         return
-    
+
     try:
         welcome_channel = member.guild.get_channel(int(config['welcome_channel_id']))
         if not welcome_channel:
             return
-        
+
         welcome_data = config.get('welcome_message', {})
-        
+
         description = welcome_data.get('description', '{mention}, benvenuto/a!')
         description = description.replace('{mention}', member.mention)
         description = description.replace('{username}', member.name)
@@ -323,7 +232,8 @@ async def on_member_join(member):
 
         ping_message = welcome_data.get('ping_message', '')
         if ping_message:
-            ping_message = ping_message.replace('{mention}', member.mention).replace('{username}', member.name).replace('{user}', member.name)
+            ping_message = ping_message.replace('{mention}', member.mention).replace('{username}', member.name).replace(
+                '{user}', member.name)
             await welcome_channel.send(content=ping_message, embed=embed)
         else:
             await welcome_channel.send(embed=embed)
@@ -332,6 +242,7 @@ async def on_member_join(member):
 
     except Exception as e:
         logger.error(f'Errore nell\'invio del messaggio di benvenuto: {e}')
+
 
 @bot.event
 async def on_member_update(before, after):
@@ -376,6 +287,7 @@ async def on_member_update(before, after):
         except Exception as e:
             logger.error(f'Errore nell\'invio del messaggio di boost: {e}')
 
+
 @bot.event
 async def on_message(message):
     global waiting_for_ruleset, waiting_for_welcome, waiting_for_boost
@@ -385,7 +297,8 @@ async def on_message(message):
 
     mention_pattern = f'<@!?{bot.user.id}>'
     if re.match(f'^{mention_pattern}$', message.content.strip()):
-        await message.channel.send("❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.")
+        await message.channel.send(
+            "❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.")
         return
 
     if waiting_for_ruleset and message.author.id == 1123622103917285418:
@@ -405,7 +318,8 @@ async def on_message(message):
 
         waiting_for_welcome = False
         await message.add_reaction('✅')
-        await message.channel.send('✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
+        await message.channel.send(
+            '✅ Messaggio di benvenuto salvato!\n\n**Variabili disponibili:**\n`{mention}` - Tag dell\'utente\n`{username}` - Nome utente\n`{avatar}` - Avatar utente (per thumbnail)')
         return
 
     content = message.content.strip()
@@ -414,7 +328,8 @@ async def on_message(message):
         if content.startswith(prefix):
             if content.startswith(prefix + "!") or content.startswith(prefix + "?"):
                 return
-            await message.channel.send('❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.')
+            await message.channel.send(
+                '❌ Sistema trasferito su comandi /. Usa `/help` per vedere una lista di comandi disponibili.')
             return
 
     await bot.process_commands(message)
@@ -453,17 +368,19 @@ async def on_message(message):
                 except Exception as e:
                     logger.error(f'Errore nello spostamento di {mention.name}: {e}')
 
+
 async def check_and_create_game(lobby_channel):
     guild = lobby_channel.guild
-    
+
     if guild.id in active_sessions and active_sessions[guild.id].is_active:
         return
-    
+
     members = [m for m in lobby_channel.members if not m.bot]
-    
+
     if len(members) >= 1:
         logger.info(f'Giocatore rilevato! Creazione partita...')
         await create_game_session(guild, lobby_channel)
+
 
 async def create_game_session(guild, lobby_channel):
     try:
@@ -476,7 +393,7 @@ async def create_game_session(guild, lobby_channel):
 
         admin_user_id = 1123622103917285418
         admin_user = guild.get_member(admin_user_id)
-        
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(
                 read_messages=True,
@@ -484,7 +401,7 @@ async def create_game_session(guild, lobby_channel):
                 connect=False
             ),
         }
-        
+
         if admin_user:
             overwrites[admin_user] = discord.PermissionOverwrite(
                 view_channel=True,
@@ -561,6 +478,7 @@ async def create_game_session(guild, lobby_channel):
         logger.error(f'Errore nella creazione della partita: {e}')
         await cleanup_session(guild.id)
 
+
 async def assign_teams(session):
     try:
         red_team = session.tagged_users[:4]
@@ -616,12 +534,13 @@ async def assign_teams(session):
     except Exception as e:
         logger.error(f'Errore nell\'assegnazione dei team: {e}')
 
+
 async def cleanup_session(guild_id):
     if guild_id not in active_sessions:
         return
-    
+
     session = active_sessions[guild_id]
-    
+
     try:
         if session.text_channel:
             try:
@@ -629,27 +548,26 @@ async def cleanup_session(guild_id):
                 logger.info(f'Canale di testo eliminato')
             except Exception as e:
                 logger.error(f'Errore nell\'eliminazione del canale di testo: {e}')
-        
+
         if session.red_voice:
             try:
                 await session.red_voice.delete()
                 logger.info(f'Canale vocale ROSSO eliminato')
             except Exception as e:
                 logger.error(f'Errore nell\'eliminazione del canale ROSSO: {e}')
-        
+
         if session.green_voice:
             try:
                 await session.green_voice.delete()
                 logger.info(f'Canale vocale VERDE eliminato')
             except Exception as e:
                 logger.error(f'Errore nell\'eliminazione del canale VERDE: {e}')
-        
+
         del active_sessions[guild_id]
         logger.info(f'Sessione pulita con successo')
-        
+
     except Exception as e:
         logger.error(f'Errore durante la pulizia: {e}')
-
 
 
 @bot.tree.command(name='cwend', description='Termina la partita custom e elimina i canali (solo admin)')
@@ -659,31 +577,41 @@ async def slash_cwend(interaction: discord.Interaction):
 
     if guild_id not in active_sessions:
         await interaction.response.send_message('❌ Non ci sono partite attive!', ephemeral=True)
-        logger.warning(f'Comando /cwend usato senza partite attive da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        logger.warning(
+            f'Comando /cwend usato senza partite attive da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
 
     await interaction.response.send_message('🧹 Terminazione partita in corso...', ephemeral=True)
     await cleanup_session(guild_id)
     await interaction.followup.send('✅ Partita terminata e canali eliminati!', ephemeral=True)
-    logger.info(f'Partita terminata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    logger.info(
+        f'Partita terminata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
 
 @bot.tree.command(name='setruleset', description='Imposta il ruleset (solo per admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_setruleset(interaction: discord.Interaction):
     global waiting_for_ruleset
     waiting_for_ruleset = True
-    await interaction.response.send_message('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.', ephemeral=False)
-    logger.info(f'Comando /setruleset usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    await interaction.response.send_message('📝 Invia il prossimo messaggio che vuoi salvare come ruleset.',
+                                            ephemeral=False)
+    logger.info(
+        f'Comando /setruleset usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
 
 @bot.tree.command(name='ruleset', description='Mostra il ruleset salvato')
 async def slash_ruleset(interaction: discord.Interaction):
     if 'ruleset_message' not in config or not config['ruleset_message']:
-        await interaction.response.send_message('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.', ephemeral=False)
-        logger.warning(f'Comando /ruleset usato senza ruleset configurato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        await interaction.response.send_message('❌ Nessun ruleset configurato! Usa `!setruleset` per impostarne uno.',
+                                                ephemeral=False)
+        logger.warning(
+            f'Comando /ruleset usato senza ruleset configurato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
 
     await interaction.response.send_message(config['ruleset_message'], ephemeral=False)
-    logger.info(f'Ruleset mostrato a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    logger.info(
+        f'Ruleset mostrato a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
 
 async def update_counters(guild):
     if guild.id not in counter_channels:
@@ -699,7 +627,8 @@ async def update_counters(guild):
             channel = counter_channels[guild.id][channel_type]
             if channel is None or not hasattr(channel, 'id') or channel.id is None:
                 del counter_channels[guild.id][channel_type]
-                if str(guild.id) in config.get('active_counters', {}) and channel_type in config['active_counters'][str(guild.id)]:
+                if str(guild.id) in config.get('active_counters', {}) and channel_type in config['active_counters'][
+                    str(guild.id)]:
                     del config['active_counters'][str(guild.id)][channel_type]
                     if not config['active_counters'][str(guild.id)]:
                         del config['active_counters'][str(guild.id)]
@@ -736,6 +665,7 @@ async def update_counters(guild):
     except Exception as e:
         logger.error(f'Errore nell\'aggiornamento dei counter: {e}')
 
+
 async def counter_update_loop():
     await bot.wait_until_ready()
     while not bot.is_closed():
@@ -749,6 +679,7 @@ async def counter_update_loop():
             logger.error(f'Errore nel loop di aggiornamento counter: {e}')
             await asyncio.sleep(15)
 
+
 @bot.tree.command(name='startct', description='Avvia i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_startct(interaction: discord.Interaction):
@@ -757,7 +688,8 @@ async def slash_startct(interaction: discord.Interaction):
     guild = interaction.guild
 
     if guild.id in counter_channels:
-        await interaction.response.send_message('❌ I counter sono già attivi! Usa `/stopct` per fermarli prima.', ephemeral=True)
+        await interaction.response.send_message('❌ I counter sono già attivi! Usa `/stopct` per fermarli prima.',
+                                                ephemeral=True)
         return
 
     try:
@@ -772,8 +704,10 @@ async def slash_startct(interaction: discord.Interaction):
         if role:
             role_members = len([m for m in role.members if not m.bot])
 
-        total_name = counters_config.get('total_members_name', '👥 Membri: {count}').replace('{count}', str(total_members))
-        role_name = counters_config.get('role_members_name', '⭐ Membri Clan: {count}').replace('{count}', str(role_members))
+        total_name = counters_config.get('total_members_name', '👥 Membri: {count}').replace('{count}',
+                                                                                            str(total_members))
+        role_name = counters_config.get('role_members_name', '⭐ Membri Clan: {count}').replace('{count}',
+                                                                                               str(role_members))
 
         total_channel = await guild.create_voice_channel(
             name=total_name,
@@ -810,12 +744,15 @@ async def slash_startct(interaction: discord.Interaction):
         if counter_task is None or counter_task.done():
             counter_task = bot.loop.create_task(counter_update_loop())
 
-        await interaction.followup.send(f'✅ Canali counter creati con successo!\n📊 Membri totali: {total_members}\n⭐ Membri clan: {role_members}', ephemeral=False)
+        await interaction.followup.send(
+            f'✅ Canali counter creati con successo!\n📊 Membri totali: {total_members}\n⭐ Membri clan: {role_members}',
+            ephemeral=False)
         logger.info(f'Counter attivati nel server {guild.name}')
 
     except Exception as e:
         await interaction.followup.send(f'❌ Errore nella creazione dei counter: {e}', ephemeral=True)
         logger.error(f'Errore nella creazione dei counter: {e}')
+
 
 @bot.tree.command(name='stopct', description='Ferma e elimina i canali counter (solo admin)')
 @owner_or_has_permissions(administrator=True)
@@ -856,6 +793,7 @@ async def slash_stopct(interaction: discord.Interaction):
     except Exception as e:
         await interaction.followup.send(f'❌ Errore nel fermare i counter: {e}', ephemeral=True)
         logger.error(f'Errore nel fermare i counter: {e}')
+
 
 class DeleteConfirmView(discord.ui.View):
     def __init__(self, ctx):
@@ -906,11 +844,13 @@ class SlashDeleteConfirmView(discord.ui.View):
             return
         await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
 
+
 @bot.tree.command(name='delete', description='Elimina il canale corrente (con conferma)')
 async def slash_delete(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator and interaction.user.id != 1123622103917285418:
         await interaction.response.send_message('❌ Non hai i permessi per usare questo comando!', ephemeral=True)
-        logger.warning(f'Comando /delete usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        logger.warning(
+            f'Comando /delete usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         return
     embed = discord.Embed(
         title='🗑️ Conferma Eliminazione',
@@ -920,7 +860,9 @@ async def slash_delete(interaction: discord.Interaction):
     embed.set_footer(text='Scade in 30 secondi')
     view = SlashDeleteConfirmView(interaction.user.id, interaction.channel)
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    logger.info(f'Conferma eliminazione canale richiesta da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) per canale {interaction.channel.name} in {interaction.guild.name}')
+    logger.info(
+        f'Conferma eliminazione canale richiesta da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) per canale {interaction.channel.name} in {interaction.guild.name}')
+
 
 @bot.tree.command(name='purge', description='Elimina un numero di messaggi (1-250)')
 @app_commands.describe(limit='Numero di messaggi da eliminare (1-250)')
@@ -928,35 +870,44 @@ async def slash_purge(interaction: discord.Interaction, limit: int):
     try:
         if not interaction.user.guild_permissions.manage_messages and interaction.user.id != OWNER_ID:
             await interaction.response.send_message('❌ Non hai abbastanza permessi!', ephemeral=True)
-            logger.warning(f'Comando /purge usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+            logger.warning(
+                f'Comando /purge usato senza permessi da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
             return
 
         if limit < 1 or limit > 250:
             await interaction.response.send_message('❌ puoi scegliere numeri tra 1 e 250.', ephemeral=True)
-            logger.warning(f'Comando /purge con limite invalido ({limit}) da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+            logger.warning(
+                f'Comando /purge con limite invalido ({limit}) da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
             return
 
         await interaction.response.defer(ephemeral=True)
         deleted = await interaction.channel.purge(limit=limit, before=interaction.created_at)
         await interaction.followup.send(f'✅ Ho eliminato {len(deleted)} messaggi.', ephemeral=True)
-        logger.info(f'Purge eseguita: {len(deleted)} messaggi eliminati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in canale {interaction.channel.name} ({interaction.guild.name})')
+        logger.info(
+            f'Purge eseguita: {len(deleted)} messaggi eliminati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in canale {interaction.channel.name} ({interaction.guild.name})')
     except discord.Forbidden:
         try:
-            await interaction.followup.send('❌ Non ho i permessi per eliminare messaggi in questo canale!', ephemeral=True)
-            logger.error(f'Errore permessi purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+            await interaction.followup.send('❌ Non ho i permessi per eliminare messaggi in questo canale!',
+                                            ephemeral=True)
+            logger.error(
+                f'Errore permessi purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         except Exception:
             pass
     except Exception as e:
         try:
             await interaction.followup.send(f'❌ Errore durante la purge: {e}', ephemeral=True)
-            logger.error(f'Errore purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+            logger.error(
+                f'Errore purge da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
         except Exception:
             pass
+
 
 @bot.tree.command(name='ping', description='Mostra la latenza del bot')
 async def slash_ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! Latenza: {round(bot.latency * 1000)}ms", ephemeral=True)
-    logger.info(f'Comando /ping usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Latenza: {round(bot.latency * 1000)}ms')
+    logger.info(
+        f'Comando /ping usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Latenza: {round(bot.latency * 1000)}ms')
+
 
 @bot.tree.command(name='uptime', description='Mostra da quanto tempo il bot è online')
 async def slash_uptime(interaction: discord.Interaction):
@@ -970,18 +921,21 @@ async def slash_uptime(interaction: discord.Interaction):
     else:
         uptime_str = "N/A"
     await interaction.response.send_message(f"**⏱️ Uptime**: {uptime_str}", ephemeral=True)
-    logger.info(f'Comando /uptime usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Uptime: {uptime_str}')
+    logger.info(
+        f'Comando /uptime usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name} - Uptime: {uptime_str}')
+
 
 @bot.tree.command(name='embed', description='Crea e modifica un embed in tempo reale (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_embed(interaction: discord.Interaction):
-    embed = discord.Embed(title='Embed Creator', description='Usa il menu sottostante per modificare l\'embed.', color=0x00ff00)
+    embed = discord.Embed(title='Embed Creator', description='Usa il menu sottostante per modificare l\'embed.',
+                          color=0x00ff00)
     embed.set_footer(text='Valiance Bot - Embed Creator')
 
     view = EmbedCreatorView(embed, interaction.user.id)
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    logger.info(f'Comando /embed usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
-
+    logger.info(
+        f'Comando /embed usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
 
 class LogSelectView(discord.ui.View):
@@ -1012,10 +966,12 @@ class LogSelectView(discord.ui.View):
                 try:
                     await interaction.user.send(file=discord.File(file_path))
                     await interaction.response.send_message(f'✅ File `{selected_file}` inviato in DM!', ephemeral=True)
-                    logger.info(f'File log {selected_file} inviato in DM a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
+                    logger.info(
+                        f'File log {selected_file} inviato in DM a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
                 except Exception as e:
                     await interaction.response.send_message(f'❌ Errore nell\'invio del file: {e}', ephemeral=True)
-                    logger.error(f'Errore invio file log {selected_file} a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
+                    logger.error(
+                        f'Errore invio file log {selected_file} a {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
             else:
                 await interaction.response.send_message('❌ File non trovato.', ephemeral=True)
         elif self.action == 'delete':
@@ -1027,6 +983,7 @@ class LogSelectView(discord.ui.View):
             embed.set_footer(text='Scade in 30 secondi')
             view = DeleteLogConfirmView(selected_file, interaction.user.id)
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 
 class DeleteLogConfirmView(discord.ui.View):
     def __init__(self, filename, author_id):
@@ -1043,11 +1000,14 @@ class DeleteLogConfirmView(discord.ui.View):
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                await interaction.response.edit_message(content=f'✅ File di log `{self.filename}` eliminato con successo!', view=None)
-                logger.info(f'File log {self.filename} eliminato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
+                await interaction.response.edit_message(
+                    content=f'✅ File di log `{self.filename}` eliminato con successo!', view=None)
+                logger.info(
+                    f'File log {self.filename} eliminato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id})')
             except Exception as e:
                 await interaction.response.edit_message(content=f'❌ Errore nell\'eliminazione del file: {e}', view=None)
-                logger.error(f'Errore eliminazione file log {self.filename} da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
+                logger.error(
+                    f'Errore eliminazione file log {self.filename} da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {e}')
         else:
             await interaction.response.edit_message(content='❌ File non trovato.', view=None)
 
@@ -1057,6 +1017,7 @@ class DeleteLogConfirmView(discord.ui.View):
             await interaction.response.send_message('❌ Solo chi ha eseguito il comando può annullare!', ephemeral=True)
             return
         await interaction.response.edit_message(content='❌ Eliminazione annullata.', view=None)
+
 
 @bot.tree.command(name='logs', description='Visualizza e scarica i file di log del bot')
 @owner_or_has_permissions(administrator=True)
@@ -1073,7 +1034,9 @@ async def slash_logs(interaction: discord.Interaction):
 
     view = LogSelectView(log_files, action='view')
     await interaction.response.send_message('📄 Seleziona un file di log da visualizzare:', view=view, ephemeral=True)
-    logger.info(f'Comando /logs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    logger.info(
+        f'Comando /logs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
 
 @bot.tree.command(name='dellogs', description='Elimina un file di log del bot')
 @owner_or_has_permissions(administrator=True)
@@ -1090,9 +1053,12 @@ async def slash_dellogs(interaction: discord.Interaction):
 
     view = LogSelectView(log_files, action='delete')
     await interaction.response.send_message('🗑️ Seleziona un file di log da eliminare:', view=view, ephemeral=True)
-    logger.info(f'Comando /dellogs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+    logger.info(
+        f'Comando /dellogs usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
 
-@bot.tree.command(name='reloadlog', description='Ricarica la configurazione log.json senza riavviare il bot (solo admin)')
+
+@bot.tree.command(name='reloadlog',
+                  description='Ricarica la configurazione log.json senza riavviare il bot (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_reloadlog(interaction: discord.Interaction):
     try:
@@ -1100,12 +1066,15 @@ async def slash_reloadlog(interaction: discord.Interaction):
         if log_cog:
             log_cog.reload_config()
             await interaction.response.send_message('✅ Configurazione log ricaricata con successo!', ephemeral=True)
-            logger.info(f'Configurazione log ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+            logger.info(
+                f'Configurazione log ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
         else:
             await interaction.response.send_message('❌ Cog Log non trovato.', ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione log: {e}', ephemeral=True)
-        logger.error(f'Errore reloadlog da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+        logger.error(
+            f'Errore reloadlog da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
 
 def reload_global_config():
     global config
@@ -1120,16 +1089,22 @@ def reload_global_config():
     if log_cog:
         log_cog.reload_config()
 
-@bot.tree.command(name='reloadconfig', description='Ricarica la configurazione config.json senza riavviare il bot (solo admin)')
+
+@bot.tree.command(name='reloadconfig',
+                  description='Ricarica la configurazione config.json senza riavviare il bot (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_reloadconfig(interaction: discord.Interaction):
     try:
         reload_global_config()
         await interaction.response.send_message('✅ Configurazione globale ricaricata con successo!', ephemeral=True)
-        logger.info(f'Configurazione globale ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        logger.info(
+            f'Configurazione globale ricaricata da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
     except Exception as e:
-        await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione globale: {e}', ephemeral=True)
-        logger.error(f'Errore reloadconfig da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+        await interaction.response.send_message(f'❌ Errore nel ricaricare la configurazione globale: {e}',
+                                                ephemeral=True)
+        logger.error(
+            f'Errore reloadconfig da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
 
 def reload_all():
     global config
@@ -1148,16 +1123,20 @@ def reload_all():
     if log_cog:
         log_cog.reload_config()
 
+
 @bot.tree.command(name='reloadall', description='Ricarica tutte le configurazioni senza riavviare il bot (solo admin)')
 @owner_or_has_permissions(administrator=True)
 async def slash_reloadall(interaction: discord.Interaction):
     try:
         reload_all()
         await interaction.response.send_message('✅ Tutte le configurazioni ricaricate con successo!', ephemeral=True)
-        logger.info(f'Tutte le configurazioni ricaricate da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+        logger.info(
+            f'Tutte le configurazioni ricaricate da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nel ricaricare tutte le configurazioni: {e}', ephemeral=True)
-        logger.error(f'Errore reloadall da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+        logger.error(
+            f'Errore reloadall da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
+
 
 @bot.tree.command(name='setlogchannel', description='Imposta i canali di log per ogni tipo di evento (solo admin)')
 @app_commands.describe(
@@ -1172,19 +1151,19 @@ async def slash_reloadall(interaction: discord.Interaction):
 )
 @owner_or_has_permissions(administrator=True)
 async def slash_setlogchannel(
-    interaction: discord.Interaction,
-    channel_id: str = None,
-    join_leave: str = None,
-    moderation: str = None,
-    ticket: str = None,
-    autorole: str = None,
-    automod: str = None,
-    message: str = None,
-    boost: str = None
+        interaction: discord.Interaction,
+        channel_id: str = None,
+        join_leave: str = None,
+        moderation: str = None,
+        ticket: str = None,
+        autorole: str = None,
+        automod: str = None,
+        message: str = None,
+        boost: str = None
 ):
     try:
-        if os.path.exists('log.json'):
-            with open('log.json', 'r', encoding='utf-8') as f:
+        if os.path.exists('cogs/log/log.json'):
+            with open('cogs/log/log.json', 'r', encoding='utf-8') as f:
                 log_config = json.load(f)
         else:
             log_config = {}
@@ -1225,7 +1204,7 @@ async def slash_setlogchannel(
                         log_config[field] = value
                     updated_channels.append(f"{param}: {value}")
 
-        with open('log.json', 'w', encoding='utf-8') as f:
+        with open('cogs/log/log.json', 'w', encoding='utf-8') as f:
             json.dump(log_config, f, indent=2, ensure_ascii=False)
 
         embed = discord.Embed(
@@ -1240,12 +1219,13 @@ async def slash_setlogchannel(
         embed.set_footer(text='Valiance Bot | Logging System')
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        logger.info(f'Canali log aggiornati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {", ".join(updated_channels)}')
+        logger.info(
+            f'Canali log aggiornati da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {", ".join(updated_channels)}')
 
     except Exception as e:
         await interaction.response.send_message(f'❌ Errore nell\'impostazione dei canali log: {e}', ephemeral=True)
-        logger.error(f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
-
+        logger.error(
+            f'Errore setlogchannel da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}: {e}')
 
 
 @bot.tree.error
@@ -1275,13 +1255,25 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
     except Exception:
         pass
 
+
 if __name__ == '__main__':
     try:
         import importlib
         import asyncio
 
+
         async def setup_modules():
-            modules_to_setup = ['ticket', 'moderation', 'autorole', 'log', 'fun', 'regole', 'tts', 'cw', 'help']
+            modules_to_setup = [
+                'cogs.ticket.ticket',
+                'cogs.moderation.moderation',
+                'cogs.autorole.autorole',
+                'cogs.log.log',
+                'cogs.fun',
+                'cogs.regole.regole',
+                'cogs.tts.tts',
+                'cogs.cw.cw',
+                'cogs.help'
+            ]
             for modname in modules_to_setup:
                 try:
                     mod = importlib.import_module(modname)
@@ -1294,6 +1286,7 @@ if __name__ == '__main__':
                     logger.info(f'Extension {modname} setup executed')
                 except Exception as e:
                     logger.error(f'Non sono riuscito a caricare {modname}: {e}')
+
 
         asyncio.run(setup_modules())
         bot.run(os.getenv('TOKEN'))

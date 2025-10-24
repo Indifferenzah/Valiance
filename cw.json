@@ -1,6 +1,0 @@
-{
-  "embed_title": "**CW Interna**",
-  "embed_description": "`{data} - {ora}`\n**Numero:** {numerocw}\n## TEAMS\n**ROSSO**\n{rossi}\n\n**VERDE:**\n{verdi}\n\n**MAPPA:**\n> {mappa_1} (#1)\n> {mappa_2} (#2)\n> {mappa_3} (#3)\n## <a:VL_Trophy:1426256022993113119> Vincitore: Team __{vincitore}__\n**RECAP:**\n> **#1:** {recap_1}\n> **#2:** {recap_2}\n> **#3:** {recap_3}",
-  "embed_color": 3447003,
-  "footer": "Valiance | CW Interna"
-}

@@ -12,7 +12,7 @@ class LogCog(commands.Cog):
         self.bot = bot
         self.config = {}
         self.log_config = {}
-        with open('config.json', 'r', encoding='utf-8') as f:
+        with open('./config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         if os.path.exists('log.json'):
             with open('log.json', 'r', encoding='utf-8') as f:
