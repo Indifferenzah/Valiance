@@ -7,7 +7,7 @@ from colorama import Fore, Style
 
 colorama.init(autoreset=True)
 
-TTS_LEVEL_NUM = 25  # Tra INFO (20) e WARNING (30)
+TTS_LEVEL_NUM = 25
 logging.addLevelName(TTS_LEVEL_NUM, "TTS")
 
 def tts(self, message, *args, **kwargs):
