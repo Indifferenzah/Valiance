@@ -1,0 +1,37 @@
+{
+    "add": {
+        "title": "Utente aggiunto",
+        "description": "{member} è stato aggiunto al ticket.",
+        "color": 36665,
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "footer": "Valiance | Ticket System"
+    },
+    "remove": {
+        "title": "Utente rimosso",
+        "description": "{member} è stato rimosso dal ticket.",
+        "color": 36665,
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "footer": "Valiance | Ticket System"
+    },
+    "rename": {
+        "title": "Ticket rinominato",
+        "description": "Il ticket è stato rinominato in {name}.",
+        "color": 36665,
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "footer": "Valiance | Ticket System"
+    },
+    "close": {
+        "title": "Ticket chiuso",
+        "description": "Il ticket {name} è stato chiuso.",
+        "color": 36665,
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "footer": "Valiance | Ticket System"
+    },
+    "transcript": {
+        "title": "Transcript generato",
+        "description": "Il transcript del ticket {name} è stato generato.",
+        "color": 36665,
+        "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+        "footer": "Valiance | Ticket System"
+    }
+}

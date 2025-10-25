@@ -29,11 +29,12 @@ categories = {
         'commands': [
             '`/ticketpanel` - Crea pannello ticket',
             '`/close` - Chiudi ticket',
-            '`/transcript` - Genera transcript',
+            '`/transcript` - Visualizza transcript di un ticket',
             '`/add` - Aggiungi utente al ticket',
             '`/remove` - Rimuovi utente dal ticket',
             '`/rename` - Rinomina ticket',
-            '`/blacklist` - Blacklist utente'
+            '`/blacklist` - Blacklist utente',
+            '`/sendtranscript` - Manda transcript di un ticket in DM'
         ]
     },
     'utility': {
@@ -94,6 +95,10 @@ categories = {
             '`/reloadlog` - Ricarica config di log',
             '`/reloadticket` - Ricarica config di ticket',
             '`/reloadmod` - Ricarica config di moderazione',
+            '`/reloadcw` - Ricarica config di CW',
+            '`/reloadautorole` - Ricarica config di AutoRole',
+            '`/reloadtts` - Ricarica config di TTS',
+            '`/reloadregole` - Ricarica config di regole',
             '`/reloadconfig` - Ricarica config generale',
             '`/reloadall` - Ricarica tutte le configurazioni'
         ]
