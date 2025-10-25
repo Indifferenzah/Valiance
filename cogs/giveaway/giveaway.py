@@ -7,6 +7,7 @@ import random
 from typing import Optional, List, Tuple
 from datetime import datetime, timedelta, timezone
 from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
+from console_logger import logger
 
 DATA_DIR = os.path.join('cogs', 'giveaway', 'data')
 BLACKLIST_PATH = os.path.join('cogs', 'giveaway', 'blacklist.json')
@@ -284,7 +285,9 @@ class GiveawayCog(commands.Cog):
         _ensure_data_dir()
         self._temp_files = []
         self._end_loop_started = False
-        self._end_checker.start()
+        # Do NOT start the loop here: at cog setup time the client is not logged in yet.
+        # The loop will be started safely in on_ready.
+        logger.info('[Giveaway] Cog initialised; end checker will start on_ready')
 
     # Utility for ephemeral file sending
     def make_temp_file(self, content: str):
@@ -343,9 +346,12 @@ class GiveawayCog(commands.Cog):
             emb.set_thumbnail(url=thumb)
         footer_text = et.get('footer_text')
         footer_server_icon = et.get('footer_use_server_icon', False)
-        icon_url = guild.icon.url if (footer_server_icon and guild and guild.icon) else discord.Embed.Empty
+        icon_url = guild.icon.url if (footer_server_icon and guild and guild.icon) else None
         if footer_text or icon_url:
-            emb.set_footer(text=footer_text or discord.Embed.Empty, icon_url=icon_url)
+            if footer_text:
+                emb.set_footer(text=footer_text, icon_url=icon_url)
+            else:
+                emb.set_footer(icon_url=icon_url)
         # participants field appended by caller
         return emb
 
@@ -364,12 +370,12 @@ class GiveawayCog(commands.Cog):
     )
     @owner_or_has_permissions(Administrator=True)
     async def slash_gwcreate(self, interaction: discord.Interaction,
-                             titolo: Optional[str] = None,
-                             descrizione: Optional[str] = None,
-                             prize: str = '',
+                             prize: str,
                              duration: Optional[str] = None,
                              expire: Optional[int] = None,
                              number_winners: int = 1,
+                             titolo: Optional[str] = None,
+                             descrizione: Optional[str] = None,
                              thumbnail: Optional[str] = None,
                              footer_text: Optional[str] = None,
                              footer_use_server_icon: bool = False,
@@ -422,9 +428,16 @@ class GiveawayCog(commands.Cog):
             'end_message_template': end_message_template or _load_config().get('end_message')
         }
 
+        # Remove empty overrides to rely purely on config templates
+        if not titolo:
+            base.pop('title', None)
+        if not descrizione:
+            base.pop('description', None)
+
         # Build embed and send
         emb = self._build_embed(interaction.guild, base)
-        emb.add_field(name='Premio', value=prize, inline=False)
+        if prize:
+            emb.add_field(name='Premio', value=prize, inline=False)
         emb.add_field(name='Scade', value=_format_discord_time(expire_epoch), inline=True)
         emb.add_field(name='Host', value=interaction.user.mention, inline=True)
         emb.add_field(name='Partecipanti (0)', value='Premi "Partecipa" per unirti', inline=False)
@@ -498,6 +511,9 @@ class GiveawayCog(commands.Cog):
     async def _end_checker(self):
         try:
             now = _utcnow_epoch()
+            logger.debug(f'[Giveaway] End checker tick at {now}')
+            if not os.path.exists(DATA_DIR):
+                return
             for fname in os.listdir(DATA_DIR):
                 if not fname.endswith('.json'):
                     continue
@@ -512,16 +528,17 @@ class GiveawayCog(commands.Cog):
                     continue
                 expire = int(data.get('expire_epoch', 0) or 0)
                 if expire and expire <= now:
+                    logger.info(f'[Giveaway] Auto-ending giveaway {mid} (expired at {expire})')
                     await self._end_giveaway(mid)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f'[Giveaway] Error in end checker: {e}')
 
     @_end_checker.before_loop
     async def _before_checker(self):
         await self.bot.wait_until_ready()
 
     @app_commands.command(name='gwend', description='Termina un giveaway immediatamente (solo owner o admin)')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def slash_gwend(self, interaction: discord.Interaction, message_id: str):
         try:
             mid = int(message_id)
@@ -538,7 +555,7 @@ class GiveawayCog(commands.Cog):
 
     @app_commands.command(name='gwremove', description='Rimuovi forzatamente un membro dal giveaway (solo owner o admin)')
     @app_commands.describe(message_id='ID del messaggio giveaway', user='Utente da rimuovere')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def slash_gwremove(self, interaction: discord.Interaction, message_id: str, user: discord.Member):
         try:
             mid = int(message_id)
@@ -568,7 +585,7 @@ class GiveawayCog(commands.Cog):
     gwblacklist = app_commands.Group(name='gwblacklist', description='Gestisci la blacklist giveaway (solo owner/admin)')
 
     @gwblacklist.command(name='add', description='Aggiungi un utente in blacklist')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def gwblacklist_add(self, interaction: discord.Interaction, user: discord.Member):
         bl = _load_blacklist()
         key = str(interaction.guild_id)
@@ -579,7 +596,7 @@ class GiveawayCog(commands.Cog):
         await interaction.response.send_message(f'✅ {user.mention} aggiunto in blacklist per i giveaway.', ephemeral=True)
 
     @gwblacklist.command(name='remove', description='Rimuovi un utente dalla blacklist')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def gwblacklist_remove(self, interaction: discord.Interaction, user: discord.Member):
         bl = _load_blacklist()
         key = str(interaction.guild_id)
@@ -593,7 +610,7 @@ class GiveawayCog(commands.Cog):
             await interaction.response.send_message('ℹ️ Utente non in blacklist.', ephemeral=True)
 
     @gwblacklist.command(name='list', description='Mostra la blacklist corrente')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def gwblacklist_list(self, interaction: discord.Interaction):
         bl = _load_blacklist()
         key = str(interaction.guild_id)
@@ -610,7 +627,7 @@ class GiveawayCog(commands.Cog):
 
     @app_commands.command(name='reroll', description='Estrai nuovi vincitori aggiuntivi (non sostituisce i precedenti)')
     @app_commands.describe(message_id='ID del messaggio giveaway', count='Quanti nuovi vincitori aggiungere (default 1)')
-    @owner_or_admin()
+    @owner_or_has_permissions(Administrator=True)
     async def slash_reroll(self, interaction: discord.Interaction, message_id: str, count: int = 1):
         try:
             mid = int(message_id)
@@ -651,8 +668,19 @@ class GiveawayCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # Register persistent views for existing giveaways
+        # Start end checker loop safely only once when the bot is ready
         try:
+            if not self._end_loop_started and not self._end_checker.is_running():
+                self._end_checker.start()
+                self._end_loop_started = True
+                logger.info('[Giveaway] End checker loop started on_ready')
+        except Exception as e:
+            logger.error(f'[Giveaway] Failed to start end checker loop on_ready: {e}')
+        # Register persistent views for existing giveaways and catch up ended ones
+        try:
+            now = _utcnow_epoch()
+            if not os.path.exists(DATA_DIR):
+                return
             for fname in os.listdir(DATA_DIR):
                 if not fname.endswith('.json'):
                     continue
@@ -661,9 +689,28 @@ class GiveawayCog(commands.Cog):
                 except ValueError:
                     continue
                 data = self.load_giveaway(mid) or {}
-                if data.get('status', 'active') == 'active':
+                status = data.get('status', 'active')
+                if status == 'active':
+                    # Attach persistent view
                     self.bot.add_view(GiveawayView(self, message_id=mid))
+                    # Catch-up: end if expired already
+                    expire = int(data.get('expire_epoch', 0) or 0)
+                    if expire and expire <= now:
+                        logger.info(f'[Giveaway] Catch-up ending giveaway {mid} on ready (expired at {expire})')
+                        try:
+                            await self._end_giveaway(mid)
+                        except Exception as e:
+                            logger.error(f'[Giveaway] Error during catch-up end for {mid}: {e}')
         except FileNotFoundError:
+            pass
+
+    def cog_unload(self):
+        # Ensure the loop is stopped when the cog is unloaded/reloaded
+        try:
+            if self._end_checker.is_running():
+                self._end_checker.cancel()
+                logger.info('[Giveaway] End checker loop cancelled on cog unload')
+        except Exception:
             pass
 
 
