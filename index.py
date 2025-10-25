@@ -1299,6 +1299,7 @@ if __name__ == '__main__':
                 'cogs.regole.regole',
                 'cogs.tts.tts',
                 'cogs.cw.cw',
+                'cogs.giveaway.giveaway',
                 'cogs.help'
             ]
             for modname in modules_to_setup:

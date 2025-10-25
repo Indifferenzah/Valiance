@@ -97,7 +97,7 @@ categories = {
             '`/reloadmod` - Ricarica config di moderazione',
             '`/reloadcw` - Ricarica config di CW',
             '`/reloadautorole` - Ricarica config di AutoRole',
-            '`/reloadtts` - Ricarica config di TTS',
+            '`/reload` - Ricarica config di TTS',
             '`/reloadregole` - Ricarica config di regole',
             '`/reloadconfig` - Ricarica config generale',
             '`/reloadall` - Ricarica tutte le configurazioni'
@@ -108,6 +108,16 @@ categories = {
         'name': 'Clan Wars',
         'commands': [
             '`/cwend` - Termina partita CW',
+            '`/ruleset` - Mostra ruleset',
+            '`/setruleset` - Imposta ruleset',
+            '`/cw` - Invia punteggio CW',
+        ]
+    },
+    'giveaway': {
+        'emoji': '🎉',
+        'name': 'Giveaway',
+        'commands': [
+            '`/gwcreate` - Crea giveaway',
             '`/ruleset` - Mostra ruleset',
             '`/setruleset` - Imposta ruleset',
             '`/cw` - Invia punteggio CW',
