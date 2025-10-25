@@ -7,6 +7,9 @@ from datetime import datetime, timezone, timedelta
 from console_logger import logger
 
 
+BASE_DIR = os.path.dirname(__file__)
+LOG_JSON = os.path.join(BASE_DIR, 'log.json')
+
 class LogCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -14,16 +17,30 @@ class LogCog(commands.Cog):
         self.log_config = {}
         with open('./config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
-        if os.path.exists('log.json'):
-            with open('log.json', 'r', encoding='utf-8') as f:
-                try:
+        if os.path.exists(LOG_JSON):
+            try:
+                with open(LOG_JSON, 'r', encoding='utf-8') as f:
                     self.log_config = json.load(f)
+            except Exception:
+                self.log_config = {}
+        elif os.path.exists('log.json'):
+            try:
+                with open('log.json', 'r', encoding='utf-8') as f:
+                    self.log_config = json.load(f)
+                try:
+                    with open(LOG_JSON, 'w', encoding='utf-8') as f:
+                        json.dump(self.log_config, f, indent=2, ensure_ascii=False)
                 except Exception:
-                    self.log_config = {}
+                    pass
+            except Exception:
+                self.log_config = {}
 
-    async def reload_config(self):
+    def reload_config(self):
         try:
-            if os.path.exists('log.json'):
+            if os.path.exists(LOG_JSON):
+                with open(LOG_JSON, 'r', encoding='utf-8') as f:
+                    self.log_config = json.load(f)
+            elif os.path.exists('log.json'):
                 with open('log.json', 'r', encoding='utf-8') as f:
                     self.log_config = json.load(f)
         except Exception as e:
