@@ -625,10 +625,10 @@ class GiveawayCog(commands.Cog):
         text = ', '.join(mentions)
         await interaction.response.send_message(f'Lista blacklist: {text}', ephemeral=True)
 
-    @app_commands.command(name='reroll', description='Estrai nuovi vincitori aggiuntivi (non sostituisce i precedenti)')
+    @app_commands.command(name='gwreroll', description='Estrai nuovi vincitori aggiuntivi (non sostituisce i precedenti)')
     @app_commands.describe(message_id='ID del messaggio giveaway', count='Quanti nuovi vincitori aggiungere (default 1)')
     @owner_or_has_permissions(Administrator=True)
-    async def slash_reroll(self, interaction: discord.Interaction, message_id: str, count: int = 1):
+    async def slash_gwreroll(self, interaction: discord.Interaction, message_id: str, count: int = 1):
         try:
             mid = int(message_id)
         except ValueError:

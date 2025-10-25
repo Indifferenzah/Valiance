@@ -117,9 +117,10 @@ categories = {
         'name': 'Giveaway',
         'commands': [
             '`/gwcreate` - Crea giveaway',
-            '`/ruleset` - Mostra ruleset',
-            '`/setruleset` - Imposta ruleset',
-            '`/cw` - Invia punteggio CW',
+            '`/gwblacklist` - Impedisci ad utenti di entrare nei giveaway (sottocomandi: add, remove, list)',
+            '`/gwremove` - Rimuovi forzatamente un membro dal giveaway (solo owner o admin)',
+            '`/gwreroll` - Estrai nuovi vincitori aggiuntivi (non sostituisce i precedenti)',
+            '`/gwend` - Termina un giveaway immediatamente (solo owner o admin)',
         ]
     }
 }
