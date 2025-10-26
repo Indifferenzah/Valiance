@@ -556,6 +556,45 @@ class TicketButton(discord.ui.Button):
             if role:
                 overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
+        # Limite massimo di ticket aperti per utente (config: ticket_max_per_user)
+        try:
+            max_per_user = int(self.view.cog.config.get('ticket_max_per_user', 0) or 0)
+        except Exception:
+            max_per_user = 0
+        if max_per_user > 0:
+            open_tickets = []
+            for ch_id, info in self.view.cog.ticket_owners.items():
+                try:
+                    owner_id = info if isinstance(info, int) else info.get('owner')
+                except Exception:
+                    owner_id = None
+                if owner_id != interaction.user.id:
+                    continue
+                ch = self.view.cog.bot.get_channel(int(ch_id))
+                if not ch:
+                    continue  # canale eliminato/non valido: non conta
+                if ch.guild.id != guild.id:
+                    continue  # ticket di un altro server
+                if category_id and ch.category_id != int(category_id):
+                    continue  # fuori dalla categoria dei ticket
+                # Se il canale esiste ancora, lo consideriamo "aperto"
+                open_tickets.append(ch)
+
+            if len(open_tickets) >= max_per_user:
+                # Avvisa l'utente e non creare un nuovo ticket
+                try:
+                    tickets_list = ' • '.join(ch.mention for ch in open_tickets[:5])
+                    msg = f"⚠️ Hai già {len(open_tickets)} ticket aperti (limite: {max_per_user}). Chiudi uno di questi prima di aprirne un altro."
+                    if open_tickets:
+                        msg += f"\nI tuoi ticket: {tickets_list}"
+                    if interaction.response.is_done():
+                        await interaction.followup.send(msg, ephemeral=True)
+                    else:
+                        await interaction.response.send_message(msg, ephemeral=True)
+                except Exception:
+                    pass
+                return
+
         ticket_number = self.view.cog.config.get('ticket_counter', 0) + 1
         self.view.cog.config['ticket_counter'] = ticket_number
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
