@@ -102,5 +102,21 @@
   "bot_activity_type": "watching",
   "bot_activity_name": "/help | {membri} membri",
   "bot_activity_guild_id": "1350073876339490826",
-  "bot_activity_url": ""
+  "bot_activity_url": "",
+  "verify_message": {
+    "title": "Verifica",
+    "description": "Clicca il pulsante qui sotto per verificarti e accedere al resto dei canali di `Valiance`.",
+    "color": 36665,
+    "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
+    "footer": "Valiance | Verify"
+  },
+  "verify_button": {
+    "id": "verify_button",
+    "label": "Verificati",
+    "emoji": "✅",
+    "style": "success"
+  },
+  "verify_add_role_id": "1350073971395268698",
+  "verify_remove_role_id": "1350077038098120724",
+  "autorole_on_join_id": "1350077038098120724"
 }

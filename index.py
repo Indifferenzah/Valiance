@@ -142,6 +142,13 @@ async def on_ready():
                     json.dump(config, f, indent=2, ensure_ascii=False)
     status_loop.start()
 
+    # Register persistent views (e.g., verify button)
+    try:
+        bot.add_view(VerifyView())
+        logger.info('VerifyView registrata come view persistente')
+    except Exception as e:
+        logger.error(f'Errore nella registrazione della VerifyView: {e}')
+
     global counter_task
     if counter_channels and (counter_task is None or counter_task.done()):
         counter_task = bot.loop.create_task(counter_update_loop())
@@ -223,6 +230,18 @@ async def on_voice_state_update(member, before, after):
 async def on_member_join(member):
     if member.guild.id in counter_channels:
         await update_counters(member.guild)
+
+    # Auto-role on join if configured
+    try:
+        join_role_id = str(config.get('autorole_on_join_id') or '').strip()
+        if join_role_id.isdigit():
+            role = member.guild.get_role(int(join_role_id))
+            if role and role not in member.roles:
+                await member.add_roles(role, reason='Auto-ruolo all\'ingresso (config)')
+    except discord.Forbidden:
+        logger.error('Permessi insufficienti per assegnare l\'autorole al join')
+    except Exception as e:
+        logger.error(f'Errore nell\'assegnazione autorole al join: {e}')
 
     if 'welcome_channel_id' not in config or not config['welcome_channel_id']:
         return
@@ -963,6 +982,107 @@ async def slash_embed(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     logger.info(
         f'Comando /embed usato da {interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}) in {interaction.guild.name}')
+
+
+class VerifyView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        btn_cfg = config.get('verify_button', {})
+        custom_id = btn_cfg.get('id', 'verify_button')
+        label = btn_cfg.get('label', 'Verificati')
+        emoji = btn_cfg.get('emoji')
+        style_str = btn_cfg.get('style', 'success').lower()
+        style_map = {
+            'primary': discord.ButtonStyle.primary,
+            'secondary': discord.ButtonStyle.secondary,
+            'success': discord.ButtonStyle.success,
+            'danger': discord.ButtonStyle.danger,
+            'link': discord.ButtonStyle.link
+        }
+        style = style_map.get(style_str, discord.ButtonStyle.success)
+        self.verify_button = discord.ui.Button(label=label, style=style, emoji=emoji, custom_id=custom_id, disabled=(style==discord.ButtonStyle.link))
+        self.verify_button.callback = self.on_verify_clicked
+        self.add_item(self.verify_button)
+
+    async def on_verify_clicked(self, interaction: discord.Interaction):
+        try:
+            guild = interaction.guild
+            if guild is None:
+                await interaction.response.send_message('❌ Questo pulsante può essere usato solo in un server.', ephemeral=True)
+                return
+            member = interaction.user if isinstance(interaction.user, discord.Member) else guild.get_member(interaction.user.id)
+            if member is None:
+                await interaction.response.send_message('❌ Impossibile determinare il membro.', ephemeral=True)
+                return
+
+            add_role_id = str(config.get('verify_add_role_id') or '').strip()
+            remove_role_id = str(config.get('verify_remove_role_id') or '').strip()
+
+            added = removed = False
+            if add_role_id.isdigit():
+                role = guild.get_role(int(add_role_id))
+                if role and role not in member.roles:
+                    try:
+                        await member.add_roles(role, reason='Verifica tramite pulsante')
+                        added = True
+                    except discord.Forbidden:
+                        await interaction.response.send_message('❌ Non ho i permessi per assegnare il ruolo, contatta `@indifferenzah`.', ephemeral=True)
+                        return
+            if remove_role_id.isdigit():
+                role = guild.get_role(int(remove_role_id))
+                if role and role in member.roles:
+                    try:
+                        await member.remove_roles(role, reason='Verifica tramite pulsante')
+                        removed = True
+                    except discord.Forbidden:
+                        await interaction.response.send_message('❌ Non ho i permessi per rimuovere il ruolo, contatta `@indifferenzah`.', ephemeral=True)
+                        return
+
+            if not add_role_id.isdigit() and not remove_role_id.isdigit():
+                await interaction.response.send_message('⚠️ Ruoli di verifica non configurati. Contatta `@indifferenzah`.', ephemeral=True)
+                return
+
+            msg = '✅ Verifica completata.'
+            if added and removed:
+                msg = '✅ Verificato.'
+            elif added:
+                msg = '⚠️ Verifica non completata, contatta `@indifferenzah`.'
+            elif removed:
+                msg = '⚠️ Verifica non completata, contatta `@indifferenzah`.'
+            await interaction.response.send_message(msg, ephemeral=True)
+        except Exception as e:
+            try:
+                await interaction.response.send_message(f'❌ Errore durante la verifica, contatta `@indifferenzah`: {e}', ephemeral=True)
+            except Exception:
+                pass
+            logger.error(f'Errore nel pulsante verify: {e}')
+
+
+@bot.tree.command(name='verify', description='Invia il pannello di verifica con pulsante (solo admin)')
+@owner_or_has_permissions(administrator=True)
+async def slash_verify(interaction: discord.Interaction):
+    try:
+        vmsg = config.get('verify_message', {})
+        title = vmsg.get('title', 'Verifica l\'accesso')
+        description = vmsg.get('description', 'Clicca il pulsante qui sotto per verificarti.')
+        color = vmsg.get('color', 0x2ecc71)
+        embed = discord.Embed(title=title, description=description, color=color)
+        thumb = vmsg.get('thumbnail')
+        if thumb:
+            embed.set_thumbnail(url=thumb)
+        footer = vmsg.get('footer')
+        if footer:
+            embed.set_footer(text=footer)
+
+        view = VerifyView()
+        await interaction.response.send_message(embed=embed, view=view)
+        logger.info(f'/verify usato da {interaction.user} in {interaction.guild and interaction.guild.name}')
+    except Exception as e:
+        try:
+            await interaction.response.send_message(f'❌ Errore: {e}', ephemeral=True)
+        except Exception:
+            pass
+        logger.error(f'Errore comando /verify: {e}')
 
 
 class LogSelectView(discord.ui.View):
