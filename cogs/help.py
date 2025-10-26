@@ -48,7 +48,8 @@ categories = {
             '`/startct` - Avvia counter',
             '`/stopct` - Ferma counter',
             '`/embed` - Crea embed personalizzato',
-            '`/regole` - Manda le regole del server'
+            '`/regole` - Manda le regole del server',
+            '`/verify` - Manda messaggio verifica'
         ]
     },
     'autorole': {

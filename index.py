@@ -1018,6 +1018,13 @@ class VerifyView(discord.ui.View):
             add_role_id = str(config.get('verify_add_role_id') or '').strip()
             remove_role_id = str(config.get('verify_remove_role_id') or '').strip()
 
+            # Se l'utente è già verificato, notifichiamolo subito ed evitiamo modifiche inutili
+            add_role_obj = guild.get_role(int(add_role_id)) if add_role_id.isdigit() else None
+            remove_role_obj = guild.get_role(int(remove_role_id)) if remove_role_id.isdigit() else None
+            if add_role_obj and add_role_obj in member.roles and (not remove_role_obj or remove_role_obj not in member.roles):
+                await interaction.response.send_message('✅ Sei già verificato.', ephemeral=True)
+                return
+
             added = removed = False
             if add_role_id.isdigit():
                 role = guild.get_role(int(add_role_id))
@@ -1073,6 +1080,9 @@ async def slash_verify(interaction: discord.Interaction):
         footer = vmsg.get('footer')
         if footer:
             embed.set_footer(text=footer)
+        image = vmsg.get('image')
+        if image:
+            embed.set_image(url=image)
 
         view = VerifyView()
         await interaction.response.send_message(embed=embed, view=view)

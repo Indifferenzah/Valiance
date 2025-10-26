@@ -107,8 +107,9 @@
     "title": "Verifica",
     "description": "Clicca il pulsante qui sotto per verificarti e accedere al resto dei canali di `Valiance`.",
     "color": 36665,
-    "thumbnail": "https://i.postimg.cc/0NZGWpJs/Logo-Crown.png",
-    "footer": "Valiance | Verify"
+    "thumbnail": "",
+    "footer": "Valiance | Verify",
+    "image": "https://i.postimg.cc/ZKrYBsw5/4F32D0D5-A764-4FDB-8126-5E745A546764.png"
   },
   "verify_button": {
     "id": "verify_button",

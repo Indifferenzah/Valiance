@@ -93,40 +93,64 @@ class LogCog(commands.Cog):
             return 'Sistema'
 
     def _format_permissions_diff(self, before_overwrites, after_overwrites):
-        changes = []
-        all_targets = set(before_overwrites.keys()) | set(after_overwrites.keys())
-        for target in all_targets:
-            b_over = before_overwrites.get(target)
-            a_over = after_overwrites.get(target)
-            if b_over is None:
-                if a_over:
-                    allow_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_over, 'allow', 0) & getattr(discord.Permissions, p, 0)]
-                    deny_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_over, 'deny', 0) & getattr(discord.Permissions, p, 0)]
+        """
+        Supports two input types:
+        - Channel overwrites: dict[target -> discord.PermissionOverwrite]
+          Returns: multiline string describing changes.
+        - Role/Member permissions: discord.Permissions vs discord.Permissions
+          Returns: tuple (added_perms_str, removed_perms_str)
+        """
+        # Case 1: channel overwrites (dict of PermissionOverwrite)
+        if isinstance(before_overwrites, dict) and isinstance(after_overwrites, dict):
+            changes = []
+            all_targets = set(before_overwrites.keys()) | set(after_overwrites.keys())
+            for target in all_targets:
+                b_over = before_overwrites.get(target)
+                a_over = after_overwrites.get(target)
+                if b_over is None and a_over is not None:
+                    try:
+                        allow, deny = a_over.pair()  # both are discord.Permissions
+                    except Exception:
+                        # Fallback: treat as empty
+                        allow, deny = discord.Permissions.none(), discord.Permissions.none()
+                    allow_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(allow, p)]
+                    deny_perms = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(deny, p)]
                     if allow_perms or deny_perms:
-                        changes.append(f"Aggiunto overwrite per {target.mention}: Allow {', '.join(allow_perms) or 'Nessuno'}, Deny {', '.join(deny_perms) or 'Nessuno'}")
-            elif a_over is None:
-                changes.append(f"Rimosso overwrite per {target.mention}")
-            else:
-                b_allow = getattr(b_over, 'allow', 0)
-                b_deny = getattr(b_over, 'deny', 0)
-                a_allow = getattr(a_over, 'allow', 0)
-                a_deny = getattr(a_over, 'deny', 0)
-                added_allow = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if (a_allow & getattr(discord.Permissions, p, 0)) and not (b_allow & getattr(discord.Permissions, p, 0))]
-                removed_allow = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if (b_allow & getattr(discord.Permissions, p, 0)) and not (a_allow & getattr(discord.Permissions, p, 0))]
-                added_deny = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if (a_deny & getattr(discord.Permissions, p, 0)) and not (b_deny & getattr(discord.Permissions, p, 0))]
-                removed_deny = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if (b_deny & getattr(discord.Permissions, p, 0)) and not (a_deny & getattr(discord.Permissions, p, 0))]
-                if added_allow or removed_allow or added_deny or removed_deny:
-                    change_parts = []
-                    if added_allow:
-                        change_parts.append(f"Allow aggiunti: {', '.join(added_allow)}")
-                    if removed_allow:
-                        change_parts.append(f"Allow rimossi: {', '.join(removed_allow)}")
-                    if added_deny:
-                        change_parts.append(f"Deny aggiunti: {', '.join(added_deny)}")
-                    if removed_deny:
-                        change_parts.append(f"Deny rimossi: {', '.join(removed_deny)}")
-                    changes.append(f"Modificato overwrite per {target.mention}: {'; '.join(change_parts)}")
-        return '\n'.join(changes) if changes else 'Nessuno'
+                        changes.append(f"Aggiunto overwrite per {getattr(target, 'mention', str(target))}: Allow {', '.join(allow_perms) or 'Nessuno'}, Deny {', '.join(deny_perms) or 'Nessuno'}")
+                elif a_over is None and b_over is not None:
+                    changes.append(f"Rimosso overwrite per {getattr(target, 'mention', str(target))}")
+                else:
+                    try:
+                        b_allow, b_deny = b_over.pair()
+                        a_allow, a_deny = a_over.pair()
+                    except Exception:
+                        b_allow = b_deny = discord.Permissions.none()
+                        a_allow = a_deny = discord.Permissions.none()
+                    added_allow = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_allow, p) and not getattr(b_allow, p)]
+                    removed_allow = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(b_allow, p) and not getattr(a_allow, p)]
+                    added_deny = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(a_deny, p) and not getattr(b_deny, p)]
+                    removed_deny = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(b_deny, p) and not getattr(a_deny, p)]
+                    if added_allow or removed_allow or added_deny or removed_deny:
+                        change_parts = []
+                        if added_allow:
+                            change_parts.append(f"Allow aggiunti: {', '.join(added_allow)}")
+                        if removed_allow:
+                            change_parts.append(f"Allow rimossi: {', '.join(removed_allow)}")
+                        if added_deny:
+                            change_parts.append(f"Deny aggiunti: {', '.join(added_deny)}")
+                        if removed_deny:
+                            change_parts.append(f"Deny rimossi: {', '.join(removed_deny)}")
+                        changes.append(f"Modificato overwrite per {getattr(target, 'mention', str(target))}: {'; '.join(change_parts)}")
+            return '\n'.join(changes) if changes else ''
+
+        # Case 2: plain Permissions comparison for roles
+        if isinstance(before_overwrites, discord.Permissions) and isinstance(after_overwrites, discord.Permissions):
+            added = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(after_overwrites, p) and not getattr(before_overwrites, p)]
+            removed = [p.replace('_', ' ') for p in discord.Permissions.VALID_FLAGS if getattr(before_overwrites, p) and not getattr(after_overwrites, p)]
+            return (', '.join(added) or 'Nessuno', ', '.join(removed) or 'Nessuno')
+
+        # Unknown types
+        return ''
 
     def _get_channel_type_name(self, channel):
         if isinstance(channel, discord.TextChannel):
