@@ -6,9 +6,10 @@ import os
 import time
 from typing import Optional, List, Tuple
 
-from db_utils import get_db, ensure_db_ready
+from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')), 'data', 'birthdays.json')
 
 
 def load_config():
@@ -64,7 +65,8 @@ class BirthdaysCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await ensure_db_ready()
+        # No DB init needed when using JSON storage
+        pass
 
     bday = app_commands.Group(name='birthday', description='Gestione compleanni')
 
@@ -76,43 +78,56 @@ class BirthdaysCog(commands.Cog):
             await interaction.response.send_message('Formato non valido. Usa DD/MM o DD/MM/YY', ephemeral=True)
             return
         d, m, y = parsed
-        db = await get_db()
-        row = await (await db.execute('SELECT 1 FROM birthdays WHERE guild_id=? AND user_id=?', (interaction.guild.id, interaction.user.id))).fetchone()
-        if row:
-            await db.execute('UPDATE birthdays SET day=?, month=?, year=? WHERE guild_id=? AND user_id=?', (d, m, y, interaction.guild.id, interaction.user.id))
-        else:
-            await db.execute('INSERT INTO birthdays (guild_id, user_id, day, month, year) VALUES (?,?,?,?,?)', (interaction.guild.id, interaction.user.id, d, m, y))
-        await db.commit()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = str(interaction.user.id)
+        guild_data = data.get(gid, {})
+        users = guild_data.get('users', {})
+        users[uid] = {"day": d, "month": m, "year": y}
+        guild_data['users'] = users
+        data[gid] = guild_data
+        await save_json(DATA_PATH, data)
         await interaction.response.send_message(self.config['messages']['set'].format(user=interaction.user.mention, date=date))
 
     @bday.command(name='remove', description='Rimuovi il tuo compleanno')
     async def birthday_remove(self, interaction: discord.Interaction):
-        db = await get_db()
-        await db.execute('DELETE FROM birthdays WHERE guild_id=? AND user_id=?', (interaction.guild.id, interaction.user.id))
-        await db.commit()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = str(interaction.user.id)
+        guild_data = data.get(gid, {})
+        users = guild_data.get('users', {})
+        if uid in users:
+            users.pop(uid, None)
+            guild_data['users'] = users
+            data[gid] = guild_data
+            await save_json(DATA_PATH, data)
         await interaction.response.send_message(self.config['messages']['removed'], ephemeral=True)
 
     @bday.command(name='when', description='Mostra il compleanno di un utente')
     @app_commands.describe(user='Utente (opzionale)')
     async def birthday_when(self, interaction: discord.Interaction, user: Optional[discord.Member] = None):
         member = user or interaction.user
-        db = await get_db()
-        row = await (await db.execute('SELECT day, month, year FROM birthdays WHERE guild_id=? AND user_id=?', (interaction.guild.id, member.id))).fetchone()
-        if not row:
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = str(member.id)
+        users = data.get(gid, {}).get('users', {})
+        info = users.get(uid)
+        if not info:
             await interaction.response.send_message('Non trovato.', ephemeral=True)
             return
-        d, m, y = int(row['day']), int(row['month']), row['year']
+        d, m, y = int(info['day']), int(info['month']), info.get('year')
         date_str = f"{d:02d}/{m:02d}" + (f"/{str(y)[2:]}" if y else '')
         await interaction.response.send_message(self.config['messages']['when'].format(user=member.mention, date=date_str))
 
     @bday.command(name='next', description='Mostra i prossimi compleanni')
     async def birthday_next(self, interaction: discord.Interaction):
-        db = await get_db()
-        rows = await (await db.execute('SELECT user_id, day, month FROM birthdays WHERE guild_id=?', (interaction.guild.id,))).fetchall()
-        if not rows:
+        import datetime
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        users = data.get(gid, {}).get('users', {})
+        if not users:
             await interaction.response.send_message('Nessun compleanno registrato.', ephemeral=True)
             return
-        import datetime
         today = datetime.date.today()
         def days_until(d, m):
             year = today.year if (m, d) >= (today.month, today.day) else today.year + 1
@@ -121,7 +136,13 @@ class BirthdaysCog(commands.Cog):
                 return (target - today).days
             except Exception:
                 return 9999
-        upcoming = sorted([(r['user_id'], r['day'], r['month'], days_until(r['day'], r['month'])) for r in rows], key=lambda x: x[3])
+        upcoming = []
+        for uid, info in users.items():
+            d = int(info.get('day', 0))
+            m = int(info.get('month', 0))
+            if d and m:
+                upcoming.append((int(uid), d, m, days_until(d, m)))
+        upcoming.sort(key=lambda x: x[3])
         desc = [self.config['messages']['next_header']]
         for user_id, d, m, left in upcoming[:10]:
             member = interaction.guild.get_member(user_id)
@@ -139,14 +160,16 @@ class BirthdaysCog(commands.Cog):
                 return
             # Send wishes once
             for guild in self.bot.guilds:
-                db = await get_db()
-                rows = await (await db.execute('SELECT user_id FROM birthdays WHERE guild_id=? AND day=? AND month=?', (guild.id, today.day, today.month))).fetchall()
-                if not rows:
+                data = await load_json(DATA_PATH, {})
+                gid = str(guild.id)
+                users = data.get(gid, {}).get('users', {})
+                todays = [int(uid) for uid, info in users.items() if int(info.get('day', 0)) == today.day and int(info.get('month', 0)) == today.month]
+                if not todays:
                     continue
                 ch_id = self.config.get('announce_channel_id')
                 channel = guild.get_channel(int(ch_id)) if ch_id else (guild.system_channel or next((c for c in guild.text_channels if c.permissions_for(guild.me).send_messages), None))
-                for r in rows:
-                    user = guild.get_member(r['user_id'])
+                for uid in todays:
+                    user = guild.get_member(uid)
                     if channel and user:
                         try:
                             await channel.send(self.config['messages']['wish'].format(mention=user.mention))

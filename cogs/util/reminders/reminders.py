@@ -8,9 +8,10 @@ import time
 from typing import Optional
 
 from bot_utils import owner_or_has_permissions
-from db_utils import get_db, ensure_db_ready
+from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), 'data', 'reminders.json')
 
 
 def load_config():
@@ -73,7 +74,8 @@ class RemindersCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await ensure_db_ready()
+        # No DB init needed with JSON storage
+        pass
 
     @app_commands.command(name='remind', description='Crea un promemoria')
     @app_commands.describe(when='Quando (es. 10m, 2h, 1d o DD/MM/YY HH:MM)', message='Messaggio del promemoria', send_in_dm='Se inviare in DM', channel='Canale dove ricordarti (se non in DM)')
@@ -92,81 +94,113 @@ class RemindersCog(commands.Cog):
                 target_channel_id = int(cfg.get('default_channel_id'))
             else:
                 target_channel_id = interaction.channel.id
-        db = await get_db()
+        # JSON storage
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = int(interaction.user.id)
+        g = data.get(gid, {"last_id": 0, "items": []})
         # limit per user
         max_per_user = int(cfg.get('max_per_user', 10))
-        c = await (await db.execute('SELECT COUNT(*) as c FROM reminders WHERE guild_id=? AND user_id=?', (interaction.guild.id, interaction.user.id))).fetchone()
-        if c['c'] >= max_per_user:
+        user_count = sum(1 for it in g.get('items', []) if it.get('user_id') == uid)
+        if user_count >= max_per_user:
             await interaction.response.send_message(f'Hai raggiunto il limite di {max_per_user} promemoria.', ephemeral=True)
             return
-        await db.execute('INSERT INTO reminders (guild_id, user_id, channel_id, is_dm, message, remind_at, recurrence, created_at) VALUES (?,?,?,?,?,?,?,?)', (
-            interaction.guild.id, interaction.user.id, target_channel_id, 1 if send_dm else 0, message, due, None, int(time.time())
-        ))
-        await db.commit()
+        new_id = int(g.get('last_id', 0)) + 1
+        g['last_id'] = new_id
+        g['items'] = g.get('items', [])
+        g['items'].append({
+            'id': new_id,
+            'user_id': uid,
+            'channel_id': int(target_channel_id) if target_channel_id else None,
+            'is_dm': bool(send_dm),
+            'message': message,
+            'remind_at': int(due),
+            'created_at': int(time.time())
+        })
+        data[gid] = g
+        await save_json(DATA_PATH, data)
         await interaction.response.send_message(cfg['messages']['created'].format(time=when), ephemeral=True)
 
     @app_commands.command(name='reminders', description='Lista i tuoi promemoria')
     async def slash_reminders(self, interaction: discord.Interaction):
         cfg = self.config
-        db = await get_db()
-        rows = await (await db.execute('SELECT id, channel_id, is_dm, message, remind_at FROM reminders WHERE guild_id=? AND user_id=? ORDER BY remind_at', (interaction.guild.id, interaction.user.id))).fetchall()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = int(interaction.user.id)
+        g = data.get(gid, {"items": []})
+        rows = sorted([it for it in g.get('items', []) if it.get('user_id') == uid], key=lambda it: it.get('remind_at', 0))
         if not rows:
             await interaction.response.send_message(cfg['messages']['no_reminders'], ephemeral=True)
             return
         desc = [cfg['messages']['list_header']]
         for r in rows:
-            ts = f"<t:{r['remind_at']}:F>"
-            dest = 'DM' if r['is_dm'] else (f"<#${r['channel_id']}>" if r['channel_id'] else '#current')
-            desc.append(f"`#{r['id']}` {ts} → {dest} — {r['message']}")
+            ts = f"<t:{int(r.get('remind_at', 0))}:F>"
+            dest = 'DM' if r.get('is_dm') else (f"<#{int(r.get('channel_id'))}>" if r.get('channel_id') else '#current')
+            desc.append(f"`#{r.get('id')}` {ts} → {dest} — {r.get('message')}")
         await interaction.response.send_message('\n'.join(desc), ephemeral=True)
 
     @app_commands.command(name='remind_delete', description='Elimina un tuo promemoria')
     @app_commands.describe(reminder_id='ID promemoria')
     async def slash_remind_delete(self, interaction: discord.Interaction, reminder_id: int):
-        db = await get_db()
-        row = await (await db.execute('SELECT user_id FROM reminders WHERE id=? AND guild_id=?', (reminder_id, interaction.guild.id))).fetchone()
-        if not row:
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = int(interaction.user.id)
+        g = data.get(gid, {"items": []})
+        items = g.get('items', [])
+        found = next((it for it in items if int(it.get('id')) == int(reminder_id)), None)
+        if not found:
             await interaction.response.send_message('Promemoria non trovato.', ephemeral=True)
             return
-        if row['user_id'] != interaction.user.id and not interaction.user.guild_permissions.administrator:
+        if found.get('user_id') != uid and not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message('Non puoi eliminare promemoria di altri.', ephemeral=True)
             return
-        await db.execute('DELETE FROM reminders WHERE id=?', (reminder_id,))
-        await db.commit()
+        items = [it for it in items if int(it.get('id')) != int(reminder_id)]
+        g['items'] = items
+        data[gid] = g
+        await save_json(DATA_PATH, data)
         await interaction.response.send_message('🗑️ Promemoria eliminato.', ephemeral=True)
 
     @tasks.loop(seconds=30)
     async def dispatch_loop(self):
         await self.bot.wait_until_ready()
         try:
-            db = await get_db()
             now = int(time.time())
-            rows = await (await db.execute('SELECT id, guild_id, user_id, channel_id, is_dm, message FROM reminders WHERE remind_at <= ?', (now,))).fetchall()
-            if not rows:
-                return
-            for r in rows:
-                try:
-                    guild = self.bot.get_guild(r['guild_id'])
-                    if not guild:
+            data = await load_json(DATA_PATH, {})
+            changed = False
+            for gid, g in list(data.items()):
+                items = g.get('items', [])
+                remaining = []
+                for r in items:
+                    if int(r.get('remind_at', 0)) > now:
+                        remaining.append(r)
                         continue
-                    user = guild.get_member(r['user_id'])
-                    if not user:
-                        continue
-                    content = self.config['messages']['remind_format'].format(mention=user.mention, message=r['message'])
-                    if r['is_dm']:
-                        try:
-                            await user.send(content)
-                        except Exception:
-                            pass
-                    else:
-                        channel = guild.get_channel(r['channel_id']) if r['channel_id'] else None
-                        if channel is None:
-                            channel = guild.system_channel or next((c for c in guild.text_channels if c.permissions_for(guild.me).send_messages), None)
-                        if channel:
-                            await channel.send(content)
-                finally:
-                    await db.execute('DELETE FROM reminders WHERE id=?', (r['id'],))
-            await db.commit()
+                    try:
+                        guild = self.bot.get_guild(int(gid))
+                        if not guild:
+                            continue
+                        user = guild.get_member(int(r.get('user_id')))
+                        if not user:
+                            continue
+                        content = self.config['messages']['remind_format'].format(mention=user.mention, message=r.get('message'))
+                        if r.get('is_dm'):
+                            try:
+                                await user.send(content)
+                            except Exception:
+                                pass
+                        else:
+                            ch_id = r.get('channel_id')
+                            channel = guild.get_channel(int(ch_id)) if ch_id else None
+                            if channel is None:
+                                channel = guild.system_channel or next((c for c in guild.text_channels if c.permissions_for(guild.me).send_messages), None)
+                            if channel:
+                                await channel.send(content)
+                    finally:
+                        changed = True
+                if changed:
+                    g['items'] = remaining
+                    data[gid] = g
+            if changed:
+                await save_json(DATA_PATH, data)
         except Exception:
             pass
 

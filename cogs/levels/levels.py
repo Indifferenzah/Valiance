@@ -10,9 +10,10 @@ from typing import Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 
 from bot_utils import owner_or_has_permissions
-from db_utils import get_db, ensure_db_ready
+from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), 'data', 'levels.json')
 
 
 def load_config():
@@ -70,7 +71,8 @@ class LevelsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await ensure_db_ready()
+        # No DB init needed with JSON storage
+        pass
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -84,23 +86,28 @@ class LevelsCog(commands.Cog):
         if isinstance(message.author, discord.Member) and user_has_excluded_role(message.author, text_cfg.get('excluded_role_ids', [])):
             return
 
-        db = await get_db()
         now = int(time.time())
         cooldown = int(text_cfg.get('cooldown_seconds', 60))
-        row = await (await db.execute('SELECT text_xp, last_msg_xp_at FROM users_xp WHERE guild_id=? AND user_id=?', (message.guild.id, message.author.id))).fetchone()
-        last = row['last_msg_xp_at'] if row else None
-        if last and now - int(last) < cooldown:
+        data = await load_json(DATA_PATH, {})
+        gid = str(message.guild.id)
+        uid = str(message.author.id)
+        g = data.get(gid, {})
+        users = g.get('users', {})
+        u = users.get(uid, {"text_xp": 0, "voice_xp": 0, "last_msg_xp_at": 0})
+        last = int(u.get('last_msg_xp_at', 0) or 0)
+        if last and now - last < cooldown:
             return
 
         amount = random.randint(int(text_cfg.get('min', 5)), int(text_cfg.get('max', 15)))
         mult = get_multiplier(message.author, text_cfg.get('multiplier_roles', {}))
         amount = int(amount * mult)
 
-        if row:
-            await db.execute('UPDATE users_xp SET text_xp = text_xp + ?, last_msg_xp_at=? WHERE guild_id=? AND user_id=?', (amount, now, message.guild.id, message.author.id))
-        else:
-            await db.execute('INSERT INTO users_xp (guild_id, user_id, text_xp, voice_xp, last_msg_xp_at) VALUES (?,?,?,?,?)', (message.guild.id, message.author.id, amount, 0, now))
-        await db.commit()
+        u['text_xp'] = int(u.get('text_xp', 0)) + amount
+        u['last_msg_xp_at'] = now
+        users[uid] = u
+        g['users'] = users
+        data[gid] = g
+        await save_json(DATA_PATH, data)
 
     @tasks.loop(minutes=1)
     async def voice_loop(self):
@@ -126,13 +133,17 @@ class LevelsCog(commands.Cog):
                                 continue
                             mult = get_multiplier(m, vcfg.get('multiplier_roles', {}))
                             amount = int(per_min * mult)
-                            db = await get_db()
-                            row = await (await db.execute('SELECT 1 FROM users_xp WHERE guild_id=? AND user_id=?', (guild.id, m.id))).fetchone()
-                            if row:
-                                await db.execute('UPDATE users_xp SET voice_xp = voice_xp + ? WHERE guild_id=? AND user_id=?', (amount, guild.id, m.id))
-                            else:
-                                await db.execute('INSERT INTO users_xp (guild_id, user_id, text_xp, voice_xp) VALUES (?,?,?,?)', (guild.id, m.id, 0, amount))
-                            await db.commit()
+                            data = await load_json(DATA_PATH, {})
+                            gid = str(guild.id)
+                            uid = str(m.id)
+                            g = data.get(gid, {})
+                            users = g.get('users', {})
+                            u = users.get(uid, {"text_xp": 0, "voice_xp": 0, "last_msg_xp_at": 0})
+                            u['voice_xp'] = int(u.get('voice_xp', 0)) + amount
+                            users[uid] = u
+                            g['users'] = users
+                            data[gid] = g
+                            await save_json(DATA_PATH, data)
         except Exception:
             pass
 
@@ -161,11 +172,14 @@ class LevelsCog(commands.Cog):
                 font_large = ImageFont.load_default()
                 font_small = ImageFont.load_default()
 
-            # Fetch XP
-            db = await get_db()
-            row = await (await db.execute('SELECT text_xp, voice_xp FROM users_xp WHERE guild_id=? AND user_id=?', (member.guild.id, member.id))).fetchone()
-            text_xp = int(row['text_xp']) if row else 0
-            voice_xp = int(row['voice_xp']) if row else 0
+            # Fetch XP from JSON
+            data = await load_json(DATA_PATH, {})
+            gid = str(member.guild.id)
+            uid = str(member.id)
+            users = data.get(gid, {}).get('users', {})
+            u = users.get(uid, {"text_xp": 0, "voice_xp": 0})
+            text_xp = int(u.get('text_xp', 0))
+            voice_xp = int(u.get('voice_xp', 0))
             xp = text_xp if mode == 'text' else voice_xp
             level, cur_xp, needed = level_from_xp(xp)
 
@@ -227,20 +241,26 @@ class LevelsCog(commands.Cog):
     async def slash_leaderboard(self, interaction: discord.Interaction, mode: Optional[str] = 'text', page: Optional[int] = 1):
         await interaction.response.defer()
         mode = (mode or 'text').lower()
-        mode_col = 'text_xp' if mode == 'text' else 'voice_xp'
         page = max(1, int(page or 1))
         page_size = int(self.config.get('leaderboard', {}).get('page_size', 10))
         offset = (page - 1) * page_size
-        db = await get_db()
-        rows = await (await db.execute(f'SELECT user_id, {mode_col} as xp FROM users_xp WHERE guild_id=? ORDER BY xp DESC LIMIT ? OFFSET ?', (interaction.guild.id, page_size, offset))).fetchall()
-        if not rows:
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        users = data.get(gid, {}).get('users', {})
+        items = []
+        for uid, u in users.items():
+            xp = int(u.get('text_xp', 0)) if mode == 'text' else int(u.get('voice_xp', 0))
+            items.append((int(uid), xp))
+        items.sort(key=lambda x: x[1], reverse=True)
+        slice_items = items[offset:offset + page_size]
+        if not slice_items:
             await interaction.followup.send('Nessun dato in classifica.')
             return
         desc = []
         rank_start = offset + 1
-        for i, r in enumerate(rows, start=rank_start):
-            user = interaction.guild.get_member(r['user_id']) or await interaction.guild.fetch_member(r['user_id'])
-            desc.append(f"**#{i}** {user.mention if user else r['user_id']} — {r['xp']} XP")
+        for i, (uid, xp) in enumerate(slice_items, start=rank_start):
+            user = interaction.guild.get_member(uid) or await interaction.guild.fetch_member(uid)
+            desc.append(f"**#{i}** {user.mention if user else uid} — {xp} XP")
         embed = discord.Embed(title=f"Classifica {mode.capitalize()}", description='\n'.join(desc), color=0x14ff72)
         await interaction.followup.send(embed=embed)
 
@@ -248,32 +268,36 @@ class LevelsCog(commands.Cog):
     @owner_or_has_permissions(administrator=True)
     @app_commands.describe(user='Utente', amount='Quantità', mode='text o voice')
     async def slash_givexp(self, interaction: discord.Interaction, user: discord.Member, amount: int, mode: Optional[str] = 'text'):
-        db = await get_db()
         col = 'text_xp' if (mode or 'text').lower() == 'text' else 'voice_xp'
-        row = await (await db.execute('SELECT 1 FROM users_xp WHERE guild_id=? AND user_id=?', (interaction.guild.id, user.id))).fetchone()
-        if row:
-            await db.execute(f'UPDATE users_xp SET {col} = {col} + ? WHERE guild_id=? AND user_id=?', (amount, interaction.guild.id, user.id))
-        else:
-            text_xp = amount if col == 'text_xp' else 0
-            voice_xp = amount if col == 'voice_xp' else 0
-            await db.execute('INSERT INTO users_xp (guild_id, user_id, text_xp, voice_xp) VALUES (?,?,?,?)', (interaction.guild.id, user.id, text_xp, voice_xp))
-        await db.commit()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = str(user.id)
+        g = data.get(gid, {})
+        users = g.get('users', {})
+        u = users.get(uid, {"text_xp": 0, "voice_xp": 0, "last_msg_xp_at": 0})
+        u[col] = int(u.get(col, 0)) + int(amount)
+        users[uid] = u
+        g['users'] = users
+        data[gid] = g
+        await save_json(DATA_PATH, data)
         await interaction.response.send_message(f'Aggiunti {amount} XP {"testo" if col=="text_xp" else "voice"} a {user.mention}.', ephemeral=True)
 
     @app_commands.command(name='setxp', description='Setta gli XP di un utente (solo admin)')
     @owner_or_has_permissions(administrator=True)
     @app_commands.describe(user='Utente', amount='Quantità', mode='text o voice')
     async def slash_setxp(self, interaction: discord.Interaction, user: discord.Member, amount: int, mode: Optional[str] = 'text'):
-        db = await get_db()
         col = 'text_xp' if (mode or 'text').lower() == 'text' else 'voice_xp'
-        row = await (await db.execute('SELECT 1 FROM users_xp WHERE guild_id=? AND user_id=?', (interaction.guild.id, user.id))).fetchone()
-        if row:
-            await db.execute(f'UPDATE users_xp SET {col} = ? WHERE guild_id=? AND user_id=?', (amount, interaction.guild.id, user.id))
-        else:
-            text_xp = amount if col == 'text_xp' else 0
-            voice_xp = amount if col == 'voice_xp' else 0
-            await db.execute('INSERT INTO users_xp (guild_id, user_id, text_xp, voice_xp) VALUES (?,?,?,?)', (interaction.guild.id, user.id, text_xp, voice_xp))
-        await db.commit()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        uid = str(user.id)
+        g = data.get(gid, {})
+        users = g.get('users', {})
+        u = users.get(uid, {"text_xp": 0, "voice_xp": 0, "last_msg_xp_at": 0})
+        u[col] = int(amount)
+        users[uid] = u
+        g['users'] = users
+        data[gid] = g
+        await save_json(DATA_PATH, data)
         await interaction.response.send_message(f'Settati {amount} XP {"testo" if col=="text_xp" else "voice"} per {user.mention}.', ephemeral=True)
 
 

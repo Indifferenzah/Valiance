@@ -7,9 +7,10 @@ import time
 from typing import Optional
 
 from bot_utils import owner_or_has_permissions
-from db_utils import get_db, ensure_db_ready
+from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')), 'data', 'marriages.json')
 
 
 def load_config():
@@ -32,9 +33,16 @@ def load_config():
         }
 
 
-async def is_user_married(db, guild_id: int, user_id: int) -> Optional[int]:
-    r = await (await db.execute('SELECT user_id_a, user_id_b, started_at FROM marriages WHERE guild_id=? AND (user_id_a=? OR user_id_b=?)', (guild_id, user_id, user_id))).fetchone()
-    return r
+async def is_user_married_json(guild_id: int, user_id: int):
+    data = await load_json(DATA_PATH, {})
+    gid = str(guild_id)
+    pairs = data.get(gid, {}).get('pairs', [])
+    for p in pairs:
+        a = int(p.get('a'))
+        b = int(p.get('b'))
+        if a == int(user_id) or b == int(user_id):
+            return {'user_id_a': a, 'user_id_b': b, 'started_at': int(p.get('started_at', 0))}
+    return None
 
 
 class ConsentView(discord.ui.View):
@@ -70,7 +78,8 @@ class MarriageCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await ensure_db_ready()
+        # No DB init with JSON storage
+        pass
 
     @app_commands.command(name='marry', description='Chiedi di sposare un utente')
     @app_commands.describe(user='Utente da sposare')
@@ -78,9 +87,8 @@ class MarriageCog(commands.Cog):
         if user.id == interaction.user.id or user.bot:
             await interaction.response.send_message('Non puoi sposarti da solo o con un bot.', ephemeral=True)
             return
-        db = await get_db()
         # Check already married
-        if await is_user_married(db, interaction.guild.id, interaction.user.id) or await is_user_married(db, interaction.guild.id, user.id):
+        if await is_user_married_json(interaction.guild.id, interaction.user.id) or await is_user_married_json(interaction.guild.id, user.id):
             await interaction.response.send_message(self.config['messages']['already_married'], ephemeral=True)
             return
         msg = self.config['messages']['proposal'].format(proposer=interaction.user.mention, target=user.mention)
@@ -90,8 +98,14 @@ class MarriageCog(commands.Cog):
         if view.result is True:
             started = int(time.time())
             a, b = sorted((interaction.user.id, user.id))
-            await db.execute('INSERT INTO marriages (guild_id, user_id_a, user_id_b, started_at) VALUES (?,?,?,?)', (interaction.guild.id, a, b, started))
-            await db.commit()
+            data = await load_json(DATA_PATH, {})
+            gid = str(interaction.guild.id)
+            g = data.get(gid, {"pairs": []})
+            pairs = g.get('pairs', [])
+            pairs.append({"a": int(a), "b": int(b), "started_at": started})
+            g['pairs'] = pairs
+            data[gid] = g
+            await save_json(DATA_PATH, data)
             text = self.config['messages']['accepted'].format(proposer=interaction.user.mention, target=user.mention)
             # Announce
             ch_id = self.config.get('announce_channel_id')
