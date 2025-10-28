@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "announce_channel_id": null,
+  "timezone": "Europe/Rome",
+  "messages": {
+    "set": "🎂 Compleanno impostato per {user}: {date}",
+    "removed": "🗑️ Compleanno rimosso.",
+    "when": "🎉 Il compleanno di {user} è il {date}",
+    "next_header": "📅 Prossimi compleanni:",
+    "wish": "🎉 Buon compleanno {mention}! 🥳"
+  }
+}

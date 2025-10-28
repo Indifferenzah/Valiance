@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "announce_channel_id": "1350074044250329179",
+  "messages": {
+    "proposal": "💍 {proposer} ha chiesto di sposare {target}!",
+    "accepted": "🎉 {proposer} e {target} ora sono sposati!",
+    "declined": "❌ {target} ha rifiutato la proposta di {proposer}.",
+    "already_married": "❌ Uno dei due è già in una relazione.",
+    "not_married": "❌ Non sei in una relazione.",
+    "divorced": "💔 {a} e {b} hanno divorziato.",
+    "status": "💞 {a} è in relazione con {b} dal {date}."
+  }
+}

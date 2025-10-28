@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "allow_negative": true,
+  "cooldown_seconds": 43200,
+  "daily_limit": 5,
+  "log_channel_id": null,
+  "messages": {
+    "given": "✅ {from_user} ha assegnato {delta} rep a {to_user} ({reason}). Totale: {total}.",
+    "cooldown": "⏳ Devi attendere prima di poter assegnare rep di nuovo a {to_user}.",
+    "daily_limit": "🚫 Hai raggiunto il limite giornaliero di rep.",
+    "show": "⭐ Reputation di {user}: {total}",
+    "negative_disabled": "❌ Il -rep è disabilitato."
+  }
+}

@@ -5,3 +5,5 @@ ffmpeg-python
 requests
 loguru
 PyNaCl
+aiosqlite
+Pillow

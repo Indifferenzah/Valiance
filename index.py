@@ -1430,7 +1430,12 @@ if __name__ == '__main__':
                 'cogs.tts.tts',
                 'cogs.cw.cw',
                 'cogs.giveaway.giveaway',
-                'cogs.help'
+                'cogs.help',
+                'cogs.levels.levels',
+                'cogs.util.reminders.reminders',
+                'cogs.social.marriage.marriage',
+                'cogs.rep.reputation',
+                'cogs.birthdays.birthdays'
             ]
             for modname in modules_to_setup:
                 try:
