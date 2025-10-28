@@ -82,34 +82,7 @@
     "no_automod": [
       "1350073967716732971",
       "1364656451779428462"
-    ],
-    "ai": {
-      "enabled": true,
-      "provider": "perspective",
-      "model": "omni-moderation-latest",
-      "timeout_ms": 5000,
-      "max_message_chars": 1200,
-      "timeout_minutes": 30,
-      "escalate_after": 2,
-      "strike_window_sec": 1800,
-      "language": "it",
-      "requested_attributes": [
-        "TOXICITY",
-        "INSULT",
-        "THREAT",
-        "PROFANITY",
-        "SEXUALLY_EXPLICIT",
-        "IDENTITY_ATTACK"
-      ],
-      "thresholds": {
-        "TOXICITY": 0.8,
-        "INSULT": 0.8,
-        "THREAT": 0.7,
-        "PROFANITY": 0.85,
-        "SEXUALLY_EXPLICIT": 0.85,
-        "IDENTITY_ATTACK": 0.7
-      }
-    }
+    ]
   },
   "ticket_transcript_embed": {
     "title": "Ticket Chiuso",

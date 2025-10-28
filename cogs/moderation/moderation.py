@@ -4,9 +4,6 @@ import json
 import os
 import datetime
 import re
-import time
-import asyncio
-import requests
 from discord import app_commands
 from bot_utils import OWNER_ID, owner_or_has_permissions, is_owner
 from console_logger import logger
@@ -16,7 +13,6 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), 'config.j
 MOD_JSON = os.path.join(BASE_DIR, 'moderation.json')
 WARNS_JSON = os.path.join(BASE_DIR, 'warns.json')
 USER_WORDS_JSON = os.path.join(BASE_DIR, 'user_words.json')
-AI_MOD_JSON = os.path.join(BASE_DIR, 'ai_moderation.json')
 
 class ModerationCog(commands.Cog):
     def __init__(self, bot):
@@ -66,42 +62,6 @@ class ModerationCog(commands.Cog):
             except Exception:
                 pass
 
-        # AI moderation state
-        self.ai_state = {"ai_strikes": {}}
-        if os.path.exists(AI_MOD_JSON):
-            try:
-                with open(AI_MOD_JSON, 'r', encoding='utf-8') as f:
-                    self.ai_state = json.load(f)
-            except Exception:
-                self.ai_state = {"ai_strikes": {}}
-
-        # AI configuration defaults (can be overridden by config.json > moderation > ai)
-        ai_cfg = (self.config.get('moderation', {}) or {}).get('ai', {}) or {}
-        self.ai_enabled = ai_cfg.get('enabled', True)
-        self.ai_provider = ai_cfg.get('provider', 'openai')
-        self.ai_model = ai_cfg.get('model', 'omni-moderation-latest')
-        self.ai_timeout = int(ai_cfg.get('timeout_ms', 5000)) / 1000.0
-        self.ai_max_chars = int(ai_cfg.get('max_message_chars', 1200))
-        self.ai_timeout_minutes = int(ai_cfg.get('timeout_minutes', 30))
-        self.ai_escalate_after = int(ai_cfg.get('escalate_after', 2))  # strikes before timeout
-        self.ai_window_sec = int(ai_cfg.get('strike_window_sec', 1800))  # rolling window
-        # Perspective API specific (defaults suitable for italiano)
-        self.perspective_requested_attributes = ai_cfg.get('requested_attributes', [
-            'TOXICITY', 'INSULT', 'THREAT', 'PROFANITY', 'SEXUALLY_EXPLICIT', 'IDENTITY_ATTACK'
-        ])
-        self.perspective_language = ai_cfg.get('language', 'it')
-        default_thresholds = {
-            'TOXICITY': 0.80,
-            'INSULT': 0.80,
-            'THREAT': 0.70,
-            'PROFANITY': 0.85,
-            'SEXUALLY_EXPLICIT': 0.85,
-            'IDENTITY_ATTACK': 0.70
-        }
-        th = ai_cfg.get('thresholds', default_thresholds)
-        # ensure floats
-        self.perspective_thresholds = {k: float(th.get(k, default_thresholds.get(k, 0.8))) for k in set(list(default_thresholds.keys()) + list(th.keys()))}
-
     def save_warns(self):
         with open(WARNS_JSON, 'w', encoding='utf-8') as f:
             json.dump(self.warns_data, f, indent=2, ensure_ascii=False)
@@ -109,115 +69,6 @@ class ModerationCog(commands.Cog):
     def save_user_words(self):
         with open(USER_WORDS_JSON, 'w', encoding='utf-8') as f:
             json.dump(self.user_words, f, indent=2, ensure_ascii=False)
-
-    def save_ai_state(self):
-        try:
-            with open(AI_MOD_JSON, 'w', encoding='utf-8') as f:
-                json.dump(self.ai_state, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
-
-    def _record_ai_strike(self, user_id: int):
-        now = int(time.time())
-        sid = str(user_id)
-        bucket = self.ai_state.setdefault('ai_strikes', {}).setdefault(sid, [])
-        bucket.append(now)
-        # prune old
-        cutoff = now - self.ai_window_sec
-        self.ai_state['ai_strikes'][sid] = [t for t in bucket if t >= cutoff]
-        self.save_ai_state()
-
-    def _recent_ai_strikes(self, user_id: int) -> int:
-        now = int(time.time())
-        sid = str(user_id)
-        bucket = self.ai_state.get('ai_strikes', {}).get(sid, [])
-        cutoff = now - self.ai_window_sec
-        return len([t for t in bucket if t >= cutoff])
-
-    async def ai_moderate_message(self, message) -> dict:
-        if not self.ai_enabled:
-            return {"ok": False, "flagged": False}
-        text = (message.content or '').strip()
-        if not text:
-            return {"ok": True, "flagged": False}
-        if len(text) > self.ai_max_chars:
-            text = text[: self.ai_max_chars]
-
-        loop = asyncio.get_event_loop()
-
-        # Provider: Google Perspective API
-        if str(self.ai_provider).lower() in ("perspective", "google", "google_perspective"):
-            api_key = os.getenv('PERSPECTIVE_API_KEY')
-            if not api_key:
-                logger.warning("AI moderation (Perspective) attiva ma PERSPECTIVE_API_KEY non configurata nell'ambiente")
-                return {"ok": False, "flagged": False}
-            url = f'https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key={api_key}'
-            headers = {
-                'Content-Type': 'application/json'
-            }
-            requested = {attr: {} for attr in self.perspective_requested_attributes}
-            payload = {
-                'comment': {'text': text},
-                'languages': [self.perspective_language],
-                'requestedAttributes': requested,
-                'doNotStore': True
-            }
-            try:
-                def do_request():
-                    return requests.post(url, headers=headers, json=payload, timeout=self.ai_timeout)
-                resp = await loop.run_in_executor(None, do_request)
-                if resp.status_code != 200:
-                    logger.error(f'Perspective API error: {resp.status_code} {resp.text[:200]}')
-                    return {"ok": False, "flagged": False}
-                data = resp.json()
-                attr_scores = data.get('attributeScores', {}) or {}
-                categories_bool = {}
-                any_flagged = False
-                for attr, conf in attr_scores.items():
-                    score = None
-                    try:
-                        score = float(((conf or {}).get('summaryScore') or {}).get('value'))
-                    except Exception:
-                        score = None
-                    thr = float(self.perspective_thresholds.get(attr, 0.8))
-                    is_flagged = (score is not None) and (score >= thr)
-                    categories_bool[attr] = is_flagged
-                    if is_flagged:
-                        any_flagged = True
-                return {"ok": True, "flagged": any_flagged, "categories": categories_bool}
-            except Exception as e:
-                logger.error(f'Perspective moderation exception: {e}')
-                return {"ok": False, "flagged": False}
-
-        # Fallback provider: OpenAI Moderations (legacy)
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            logger.warning('AI moderation attiva ma OPENAI_API_KEY non configurata nell\'ambiente')
-            return {"ok": False, "flagged": False}
-        url = 'https://api.openai.com/v1/moderations'
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
-        payload = {
-            'model': self.ai_model,
-            'input': text,
-        }
-        try:
-            def do_request():
-                return requests.post(url, headers=headers, json=payload, timeout=self.ai_timeout)
-            resp = await loop.run_in_executor(None, do_request)
-            if resp.status_code != 200:
-                logger.error(f'AI moderation API error: {resp.status_code} {resp.text[:200]}')
-                return {"ok": False, "flagged": False}
-            data = resp.json()
-            result = (data.get('results') or [{}])[0]
-            flagged = bool(result.get('flagged'))
-            categories = result.get('categories') or {}
-            return {"ok": True, "flagged": flagged, "categories": categories}
-        except Exception as e:
-            logger.error(f'AI moderation exception: {e}')
-            return {"ok": False, "flagged": False}
 
     def reload_mod(self):
         with open(MOD_JSON, 'r', encoding='utf-8') as f:
@@ -228,29 +79,6 @@ class ModerationCog(commands.Cog):
     def reload_config(self):
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
-        # refresh AI config from file
-        ai_cfg = (self.config.get('moderation', {}) or {}).get('ai', {}) or {}
-        self.ai_enabled = ai_cfg.get('enabled', self.ai_enabled)
-        self.ai_provider = ai_cfg.get('provider', self.ai_provider)
-        self.ai_model = ai_cfg.get('model', self.ai_model)
-        self.ai_timeout = int(ai_cfg.get('timeout_ms', int(self.ai_timeout * 1000))) / 1000.0
-        self.ai_max_chars = int(ai_cfg.get('max_message_chars', self.ai_max_chars))
-        self.ai_timeout_minutes = int(ai_cfg.get('timeout_minutes', self.ai_timeout_minutes))
-        self.ai_escalate_after = int(ai_cfg.get('escalate_after', self.ai_escalate_after))
-        self.ai_window_sec = int(ai_cfg.get('strike_window_sec', self.ai_window_sec))
-        # Perspective fields
-        self.perspective_requested_attributes = ai_cfg.get('requested_attributes', self.perspective_requested_attributes)
-        self.perspective_language = ai_cfg.get('language', self.perspective_language)
-        th = ai_cfg.get('thresholds', self.perspective_thresholds)
-        if isinstance(th, dict):
-            # merge with existing thresholds; cast to float
-            merged = dict(self.perspective_thresholds)
-            for k, v in th.items():
-                try:
-                    merged[k] = float(v)
-                except Exception:
-                    pass
-            self.perspective_thresholds = merged
 
     def get_user_warns(self, user_id):
         return [w for w in self.warns_data["warns"].values() if w["user_id"] == str(user_id)]
@@ -307,46 +135,7 @@ class ModerationCog(commands.Cog):
             if exempt_ids and any(role.id in exempt_ids for role in message.author.roles):
                 return
 
-        # AI AutoModerazione (Italiano)
-        if self.ai_enabled and message.content and not message.author.is_timed_out():
-            ai_res = await self.ai_moderate_message(message)
-            if ai_res.get('ok') and ai_res.get('flagged'):
-                try:
-                    await message.delete()
-                except Exception:
-                    pass
-                # registra strike ed escalazione
-                self._record_ai_strike(message.author.id)
-                strikes = self._recent_ai_strikes(message.author.id)
-                categories = ai_res.get('categories') or {}
-                cat_list = [k for k, v in categories.items() if v]
-                motivo = f"Contenuto inappropriato rilevato dall'AI ({', '.join(cat_list) or 'violazione'})."
-                try:
-                    if strikes > self.ai_escalate_after:
-                        delta = datetime.timedelta(minutes=self.ai_timeout_minutes)
-                        try:
-                            await message.author.timeout(delta, reason=motivo)
-                        except Exception:
-                            pass
-                        await self.send_dm(message.author, "mute", reason=motivo, staffer="Sistema", time=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), duration=f"{self.ai_timeout_minutes}m")
-                        await message.channel.send(f"{message.author.mention} è stato mutato automaticamente per {self.ai_timeout_minutes} minuti.")
-                        logger.warning(f"AI auto-mute: {message.author} per {self.ai_timeout_minutes}m - {motivo}")
-                        log_cog = self.bot.get_cog('LogCog')
-                        if log_cog:
-                            await log_cog.log_automod_mute(message.author, f"{self.ai_timeout_minutes}m", motivo)
-                    else:
-                        # solo avviso
-                        await self.send_dm(message.author, "word_warning", word="contenuto inappropriato")
-                        await message.channel.send(f"{message.author.mention} ha ricevuto un avviso: {motivo}")
-                        logger.info(f"AI avviso: {message.author} - {motivo}")
-                        log_cog = self.bot.get_cog('LogCog')
-                        if log_cog:
-                            await log_cog.log_automod_warn(message.author, motivo)
-                except Exception as e:
-                    logger.error(f"Errore gestione AI moderazione: {e}")
-                return
-
-        content = (message.content or '').lower()
+        content = message.content.lower()
         user_id_str = str(message.author.id)
         user_words_list = self.user_words.get(user_id_str, [])
 
