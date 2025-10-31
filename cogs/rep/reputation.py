@@ -9,7 +9,7 @@ from typing import Optional
 from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
-DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), 'data', 'reputation.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')), 'data', 'reputation.json')
 
 
 def load_config():
@@ -42,6 +42,86 @@ class ReputationCog(commands.Cog):
     async def on_ready(self):
         # No DB init needed with JSON storage
         pass
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        try:
+            if message.author.bot or not message.guild:
+                return
+            content = message.content.strip()
+            lowered = content.lower()
+            if not (lowered.startswith('+rep') or lowered.startswith('-rep')):
+                return
+            parts = content.split(maxsplit=2)
+            if len(parts) < 2:
+                await message.reply('Uso: `+rep @utente [motivo]` oppure `-rep @utente [motivo]`')
+                return
+            cmd = parts[0].lower()
+            target_text = parts[1]
+            reason = parts[2] if len(parts) >= 3 else None
+            # Resolve target member
+            target: Optional[discord.Member] = None
+            if message.mentions:
+                target = message.mentions[0]
+            else:
+                # try ID
+                try:
+                    tid = int(''.join(ch for ch in target_text if ch.isdigit()))
+                    target = message.guild.get_member(tid) or await message.guild.fetch_member(tid)
+                except Exception:
+                    target = None
+            if not target:
+                await message.reply('Utente non valido. Usa una menzione o un ID.')
+                return
+            delta = +1 if cmd.startswith('+') else -1
+            if delta < 0 and not self.config.get('allow_negative', True):
+                await message.reply(self.config['messages']['negative_disabled'])
+                return
+            # Apply rep with same JSON logic as slash
+            now = int(time.time())
+            cfg = self.config
+            data = await load_json(DATA_PATH, {})
+            gid = str(message.guild.id)
+            g = data.get(gid, {"totals": {}, "logs": []})
+            logs = g.get('logs', [])
+            cooldown = int(cfg.get('cooldown_seconds', 43200))
+            last_entry = next((log for log in reversed(logs) if log.get('from') == int(message.author.id) and log.get('to') == int(target.id)), None)
+            if last_entry and now - int(last_entry.get('created_at', 0)) < cooldown:
+                await message.reply(cfg['messages']['cooldown'].format(to_user=target.mention))
+                return
+            day_ago = now - 86400
+            given_today = sum(1 for log in logs if log.get('from') == int(message.author.id) and int(log.get('created_at', 0)) >= day_ago)
+            if given_today >= int(cfg.get('daily_limit', 5)):
+                await message.reply(cfg['messages']['daily_limit'])
+                return
+            totals = g.get('totals', {})
+            cur = int(totals.get(str(target.id), 0))
+            new_total = cur + int(delta)
+            totals[str(target.id)] = new_total
+            g['totals'] = totals
+            logs.append({
+                'from': int(message.author.id),
+                'to': int(target.id),
+                'delta': int(delta),
+                'reason': reason,
+                'created_at': now
+            })
+            g['logs'] = logs
+            data[gid] = g
+            await save_json(DATA_PATH, data)
+            msg = cfg['messages']['given'].format(from_user=message.author.mention, delta=('+' if delta>0 else '')+str(delta), to_user=target.mention, reason=(reason or 'nessun motivo'), total=new_total)
+            await message.reply(msg)
+            ch_id = cfg.get('log_channel_id')
+            if ch_id:
+                try:
+                    ch = message.guild.get_channel(int(ch_id))
+                    if ch and ch.id != message.channel.id:
+                        await ch.send(msg)
+                except Exception:
+                    pass
+        except Exception:
+            # Silently ignore to avoid disrupting chat
+            pass
 
     rep = app_commands.Group(name='rep', description='Sistema di reputation')
 

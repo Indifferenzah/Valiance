@@ -77,7 +77,9 @@ class RemindersCog(commands.Cog):
         # No DB init needed with JSON storage
         pass
 
-    @app_commands.command(name='remind', description='Crea un promemoria')
+    remind = app_commands.Group(name='remind', description='Sistema di reminder')
+
+    @remind.command(name='add', description='Crea un promemoria')
     @app_commands.describe(when='Quando (es. 10m, 2h, 1d o DD/MM/YY HH:MM)', message='Messaggio del promemoria', send_in_dm='Se inviare in DM', channel='Canale dove ricordarti (se non in DM)')
     async def slash_remind(self, interaction: discord.Interaction, when: str, message: str, send_in_dm: Optional[bool] = None, channel: Optional[discord.TextChannel] = None):
         cfg = self.config
@@ -121,7 +123,7 @@ class RemindersCog(commands.Cog):
         await save_json(DATA_PATH, data)
         await interaction.response.send_message(cfg['messages']['created'].format(time=when), ephemeral=True)
 
-    @app_commands.command(name='reminders', description='Lista i tuoi promemoria')
+    @remind.command(name='list', description='Lista i tuoi promemoria')
     async def slash_reminders(self, interaction: discord.Interaction):
         cfg = self.config
         data = await load_json(DATA_PATH, {})
@@ -139,7 +141,7 @@ class RemindersCog(commands.Cog):
             desc.append(f"`#{r.get('id')}` {ts} → {dest} — {r.get('message')}")
         await interaction.response.send_message('\n'.join(desc), ephemeral=True)
 
-    @app_commands.command(name='remind_delete', description='Elimina un tuo promemoria')
+    @remind.command(name='delete', description='Elimina un tuo promemoria')
     @app_commands.describe(reminder_id='ID promemoria')
     async def slash_remind_delete(self, interaction: discord.Interaction, reminder_id: int):
         data = await load_json(DATA_PATH, {})

@@ -7,13 +7,14 @@ import random
 import time
 import io
 from typing import Optional, Tuple
+import io
 from PIL import Image, ImageDraw, ImageFont
 
 from bot_utils import owner_or_has_permissions
 from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
-DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), 'data', 'levels.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')), 'data', 'levels.json')
 
 
 def load_config():

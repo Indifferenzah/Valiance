@@ -10,7 +10,7 @@ from bot_utils import owner_or_has_permissions
 from json_store import load_json, save_json
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
-DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')), 'data', 'marriages.json')
+DATA_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), 'data', 'marriages.json')
 
 
 def load_config():
@@ -118,14 +118,19 @@ class MarriageCog(commands.Cog):
 
     @app_commands.command(name='divorce', description='Divorzia dalla tua relazione attuale')
     async def slash_divorce(self, interaction: discord.Interaction):
-        db = await get_db()
-        r = await is_user_married(db, interaction.guild.id, interaction.user.id)
+        r = await is_user_married_json(interaction.guild.id, interaction.user.id)
         if not r:
             await interaction.response.send_message(self.config['messages']['not_married'], ephemeral=True)
             return
         a, b = r['user_id_a'], r['user_id_b']
-        await db.execute('DELETE FROM marriages WHERE guild_id=? AND user_id_a=? AND user_id_b=?', (interaction.guild.id, a, b))
-        await db.commit()
+        data = await load_json(DATA_PATH, {})
+        gid = str(interaction.guild.id)
+        g = data.get(gid, {"pairs": []})
+        pairs = g.get('pairs', [])
+        pairs = [p for p in pairs if not ((int(p.get('a')) == int(a) and int(p.get('b')) == int(b)) or (int(p.get('a')) == int(b) and int(p.get('b')) == int(a)))]
+        g['pairs'] = pairs
+        data[gid] = g
+        await save_json(DATA_PATH, data)
         user_a = interaction.guild.get_member(a)
         user_b = interaction.guild.get_member(b)
         await interaction.response.send_message(self.config['messages']['divorced'].format(a=user_a.mention if user_a else a, b=user_b.mention if user_b else b))
@@ -134,8 +139,7 @@ class MarriageCog(commands.Cog):
     @app_commands.describe(user='Utente (opzionale)')
     async def slash_relationship(self, interaction: discord.Interaction, user: Optional[discord.Member] = None):
         member = user or interaction.user
-        db = await get_db()
-        r = await is_user_married(db, interaction.guild.id, member.id)
+        r = await is_user_married_json(interaction.guild.id, member.id)
         if not r:
             await interaction.response.send_message('Nessuna relazione.', ephemeral=True)
             return

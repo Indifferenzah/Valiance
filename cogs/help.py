@@ -67,7 +67,10 @@ categories = {
             '`/roll` - Tira un dado',
             '`/avatar` - Mostra l\'avatar di un utente',
             '`/userinfo` - Mostra informazioni su un utente',
-            '`/serverinfo` - Mostra informazioni sul server'
+            '`/serverinfo` - Mostra informazioni sul server',
+            '`/marry` - Sposa un utente',
+            '`/divorce` - Divorzia da un utente',
+            '`/relationship` - Mostra relazioni'
         ]
     },
     'tts': {
@@ -122,6 +125,41 @@ categories = {
             '`/gwremove` - Rimuovi forzatamente un membro dal giveaway (solo owner o admin)',
             '`/gwreroll` - Estrai nuovi vincitori aggiuntivi (non sostituisce i precedenti)',
             '`/gwend` - Termina un giveaway immediatamente (solo owner o admin)',
+        ]
+    },
+    'bday': {
+        'emoji': '🎁',
+        'name': 'Birthday',
+        'commands': [
+            '`/birthday set` - Imposta compleanno',
+            '`/birthday remove` - Rimuovi compleanno',
+            '`/birthday when` - Mostra compleanno di un utente',
+            '`/birthday next` - Mostra i prossimi compleanni',
+        ]
+    },
+    'rep': {
+        'emoji': '✅',
+        'name': 'Reputation',
+        'commands': [
+            '`/rep add` (`+rep`) - Aggiungi reputation',
+            '`/rep remove` (`-rep`) - Rimuovi reputation',
+            '`/rep show` - Mostra reputation di un utente',
+        ]
+    },
+    'reminder': {
+        'emoji': '🔔',
+        'name': 'Reminders',
+        'commands': [
+            '`/remind add` - Crea promemoria',
+            '`/remind delete` - Rimuovi promemoria',
+            '`/remind list` - Mostra promemoria',
+        ]
+    },
+    'levels': {
+        'emoji': '📈',
+        'name': 'Livelli',
+        'commands': [
+            '`Coming Soon...` 👀',
         ]
     }
 }
